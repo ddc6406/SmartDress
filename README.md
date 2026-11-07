@@ -128,37 +128,6 @@ python3 -m http.server 8765
 
 ---
 
-## Hardware validation checklist
-
-Run through this once on the real rig before the demo. The firmware has only been compile-checked against stubs, not run on the pod.
-
-**Build**
-- [ ] `pio run` succeeds. If `ble_service.cpp` fails on `getValue()` types, pin the `espressif32` platform version in `platformio.ini`.
-- [ ] Serial monitor at 115200 shows `=== DressCheck pod ===` and `TCS34725 present` (or the missing-sensor line if it is unplugged).
-
-**Sensors (dry dressing, send `SELF_TEST`)**
-- [ ] Dry moisture reads above 20 mV on both zones. At or below 20 mV the pod reports a moisture fault on a healthy dry pad; if so, relax the open-circuit check in `checkFaults()`.
-- [ ] Wet the pad: centre/edge mV rise and the percentage climbs toward 100.
-- [ ] Both thermistors read plausible room temperature (about 15–35 °C), and warming one shows a difference.
-- [ ] Unplug a thermistor: `faults` becomes non-zero and the pod goes to sensor fault.
-- [ ] Bend the flex sensor: lift rises from 0 toward 1.
-- [ ] Colour sensor: clear-channel count stays below 20000 with the LED on. Check the hue-to-pH table against a known buffer or strip.
-
-**Behaviour**
-- [ ] Boot with an active session: no orange fault flash and no buzz in the first 10 s.
-- [ ] Long-press the button (about 1.5 s) or send `NEW_DRESSING`: blue LED, then green, no immediate red alert.
-- [ ] Change dressings after a wet one: readings restart from dry, not from the old values.
-- [ ] Reboot mid-session: the log says `session restored` with a sensible hours-worn figure, not hundreds of hours.
-- [ ] Unplug the colour sensor: moisture alerts still fire.
-
-**Alerts and BLE**
-- [ ] Each urgency shows its colour and vibration pattern; a short button press silences the motor.
-- [ ] Chrome connects and live packets arrive. If tiles stay blank, the MTU is too small (packet is 22 bytes).
-- [ ] Save thresholds from the app, power-cycle the pod, reconnect: values persisted. An out-of-range value (for example soon above now) is rejected.
-- [ ] Disconnect the phone: the pod still alerts on its own.
-
----
-
 ## Team & credits
 
 **Team:** Tirthrajsinh (Tirth) Gohil, Mehtab Singh, Om Arey, Shreyas Prassana, Dhairya Chauhan  
