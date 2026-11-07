@@ -159,29 +159,9 @@ Run through this once on the real rig before the demo. The firmware has only bee
 
 ---
 
-## Demo flow (15 + 5)
-
-1. Show dressing + pod on phantom; explain non-diagnostic framing.  
-2. Live readings on the web dashboard (trends / soft advisories from the pod).  
-3. Disconnect phone → pod still alerts on-device (motor / NeoPixel).  
-4. Q&A.
-
----
-
-## Safety & event rules
-
-- No real wounds; phantom / fabric only.  
-- Rented natHacks hardware returned unmodified by **7 PM MT, Nov 9**. Do not solder rented kit boards.  
-- Code and project assets written **during the event** (started 7 PM MT, Nov 6). Planning/pseudocode from before is fine; no pre-written firmware/app paste-in.  
-- Submission: public GitHub + README, 1,300-char summary, 3,000-char About, live demo. Deadline **Nov 9, 11 AM MT**.
-
----
-
 ## Team & credits
 
 **Team:** Tirthrajsinh (Tirth) Gohil, Mehtab Singh, Om Arey, Shreyas Prassana, Dhairya Chauhan  
-
-**Hackathon:** natHacks 2026  
 **Hardware:** Adafruit Feather ESP32 V2, NTC thermistors (Beta 3950), conductive-thread moisture pad, flex sensor, STEMMA TCS34725 colour sensor, vibration motor (direct NPN drive)  
 
 **Libraries / assets:** PlatformIO (Espressif32), Adafruit TCS34725, Adafruit NeoPixel, ESP32 Arduino BLE stack, team schematic PNGs in `docs/schematics/`
