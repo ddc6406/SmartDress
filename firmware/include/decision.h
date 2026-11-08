@@ -35,6 +35,10 @@ struct Thresholds {
   uint16_t pHSustainMin;
   uint16_t maxWearHours;
   float liftThreshold;
+  // Sensitivity settings (adjustable from the dashboard, saved with the thresholds):
+  float liftFullScaleMv;   // mV above flat for lift = 1.0 (lower = more sensitive)
+  float moistureWetMv;     // moisture pin mV that counts as 100 % wet
+  float phMatchRadius;     // colour points a reading may sit off the strip chart and still count
 };
 
 struct DecisionTimers {

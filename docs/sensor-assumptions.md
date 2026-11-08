@@ -5,9 +5,9 @@ Prototype conversions used by the pod firmware and mirrored in the web app.
 
 ---
 
-## Moisture (centre + edge)
+## Moisture (single zone, two threads)
 
-**Circuit:** EXC (GPIO26) pulsed HIGH for ~5 ms → conductive-thread electrode A (shared) → fabric → electrode B → sense node → **100 kΩ pulldown to GND**. Sense nodes on ADC1 (centre GPIO34, edge GPIO39).
+**Circuit:** two conductive threads taped on a gauze pad. Thread 1 is driven by EXC (A0 / GPIO26), pulsed HIGH for ~5 ms. Thread 2 goes to the sense node (A2 / GPIO34), which has a **100 kΩ pulldown to GND**. Dry gauze doesn't conduct (node ≈ 0 V); water bridges the threads and the node voltage rises (measured on the real pad: 142 mV dry, ~3040 mV soaked, back to 142 mV when dry). The edge zone (A3 / GPIO39) is not fitted; set `Pins::EDGE_ZONE_FITTED` to `true` if a third thread is added.
 
 **Why pulse:** Constant DC electrolyses the thread and drifts readings. Firmware sets EXC HIGH, averages ADC samples, then immediately drives EXC LOW.
 
@@ -26,7 +26,7 @@ Prototype conversions used by the pod firmware and mirrored in the web app.
 
 Open/short (≈0 mV or ≈3300 mV) is treated as a sensor fault, not a moisture reading.
 
-**Caveat (unverified on hardware):** with a 100 kΩ pulldown, an open thread and a bone-dry pad both read ≈0 mV, so the `< 20 mV` “open” fault can fire on a genuinely dry dressing. Check the dry reading with `SELF_TEST` before relying on it.
+**Measured on the real board:** the ESP32 ADC reads about 140 mV even at 0 V (unwired moisture pins both read 142 mV). It also tops out at about 3150 mV at 3.3 V. Fault limits therefore use **≤ 150 mV = at ground** and **≥ 3100 mV = at 3.3 V**. A dry pad legitimately reads ≈0 V, so an open thread looks the same as a dry pad; only a moisture node stuck at 3.3 V (shorted) is flagged. Thermistor readings outside 150–3100 mV are reported as *no reading* rather than converted (they would otherwise show impossible values like 116 °C or −30 °C).
 
 ---
 
@@ -66,33 +66,26 @@ Wound-vs-skin difference uses a thermistor offset measured at new-dressing calib
 \mathrm{lift} = \mathrm{clamp}\!\left(\frac{V - V_{\mathrm{flat}}}{V_{\mathrm{maxbend}} - V_{\mathrm{flat}}},\ 0,\ 1\right)
 \]
 
-Default clinician lift threshold is **0.25** (normalised). Exact flex resistance is event-calibratable; firmware stores flat / max-bend session values in flash.
+Full scale is **300 mV above the flat reading** (was 800 mV), so the default clinician lift threshold of **0.25** trips at about +75 mV. Exact flex resistance is event-calibratable; firmware stores flat / max-bend session values in flash.
 
 ---
 
 ## Colour → estimated pH (universal indicator ~4–9)
 
-**Sensor:** STEMMA TCS34725 (assumed present). LED on briefly (~50 ms), RGB normalised by clear channel, then hue → pH lookup.
+**Sensor:** STEMMA TCS34725 on the QT port. Its white LED switches on for ~0.1 s per reading (every 2 s on the debug build, every 60 s otherwise) and is off the rest of the time.
 
-**Framing:** this is an **estimated pH from indicator colour**, not a lab pH meter. It is provisional and **event-calibratable** against known buffers / strips at the hackathon.
+**Framing:** this is an **estimated pH from indicator-strip colour**, not a lab pH meter.
 
-### Provisional hue → pH table (universal indicator ≈4–9)
+### How a reading becomes a pH
 
-| Approx. hue (°) | Colour appearance | Estimated pH |
-| --- | --- | ---: |
-| 0–20 | Red / pink | 4.0 |
-| 20–40 | Red–orange | 4.5 |
-| 40–60 | Orange | 5.0 |
-| 60–80 | Yellow–orange | 5.5 |
-| 80–100 | Yellow | 6.0 |
-| 100–130 | Yellow–green | 6.5 |
-| 130–160 | Green | 7.0 |
-| 160–190 | Blue–green | 7.5 |
-| 190–220 | Blue | 8.0 |
-| 220–260 | Blue–violet | 8.5 |
-| 260–300 | Violet | 9.0 |
+1. **White reference (once per setup).** Hold the sensor 3–5 mm over plain white paper (the chart's white border) and press **Calibrate white** on the dashboard (serial `w` on bench builds). Each raw channel is divided by its white value, which removes the sensor's own colour bias (its green channel is naturally strong). Saved in flash. Until it is set, no pH is reported.
+2. **Colour + brightness.** The white-balanced reading becomes chromaticity (colour independent of brightness) plus brightness relative to white.
+3. **Match against the team's strip chart.** The 14 squares of the pH 1–14 chart (sampled from a photo, white-balanced against the chart's own paper) form a path 1 → 2 → … → 14 through colour space. The reading is mapped to the **closest point on that path**, so a colour between two squares reads as an in-between pH (e.g. halfway between 7 and 8 → 7.5).
+4. **Leniency: 8 colour points.** If the reading is more than 8 points off the path it is *not a strip colour* (white paper ≈ 20, skin ≈ 11) and no pH is reported.
 
-Hue outside this band, a saturated clear channel (≥ 20000 counts at 50 ms integration; the sensor tops out at 21504), or a missing I²C device → “pH unavailable,” not a fabricated number. Colour faults are reported in the packet’s `faults` byte but never raise `SENSOR_FAULT` urgency, so a missing colour sensor cannot suppress the moisture, temperature, or lift alerts.
+Why a path and brightness: on this chart pH 9 (dark olive) has almost the same colour as the 7 → 8 transition and differs mainly in darkness. Nearest-square matching would read 7.5 as 9. Brightness is weighted (×20) because the sensor sits at a fixed distance in the pod; tested to stay within ±0.5 pH for ±15 % brightness drift and ±2-point colour noise across pH 6–9.
+
+**Caveat:** the references come from a phone photo, not from the sensor itself. Verify with real dipped strips (tap water ≈ 7, vinegar ≈ 3) before trusting decimals.
 
 Default clinician pH alert is **7.5**, sustained (default 30 min) before a “contact clinic for review” advisory.
 

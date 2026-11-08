@@ -6,7 +6,11 @@ namespace Pins {
   constexpr int EXC = 26;           // Moisture excitation (pulse HIGH ~5 ms)
   constexpr int MOTOR = 25;         // Direct NPN base drive via 1k (no driver board)
   constexpr int M_CENTER = 34;      // Centre moisture ADC1 (input-only)
-  constexpr int M_EDGE = 39;        // Edge moisture ADC1 (input-only)
+  constexpr int M_EDGE = 39;        // Edge moisture ADC1 (input-only) — unused while EDGE_ZONE_FITTED is false
+
+  // The pad has two threads: EXC (A0) and one sensing thread (A2). Set true if a third,
+  // edge-zone thread is wired to A3's node.
+  constexpr bool EDGE_ZONE_FITTED = false;
   constexpr int T_WOUND = 36;       // Wound thermistor ADC1 (input-only)
   constexpr int T_REF = 37;         // Reference thermistor ADC1 (input-only)
   constexpr int LIFT = 33;          // Flex / lift ADC1

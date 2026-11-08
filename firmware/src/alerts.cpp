@@ -35,6 +35,11 @@ void stopVibration() {
   motorUntilMs = 0;
 }
 
+void pulseMotor(uint32_t ms) {
+  motorWrite(true);
+  motorUntilMs = millis() + ms;
+}
+
 void triggerAlert(Urgency urgency) {
   lastPulseMs = millis();  // repeat-haptic timer counts from the moment the alert fires
   switch (urgency) {

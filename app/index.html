@@ -2,12 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f6b4f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="DressCheck" />
+  <meta name="description" content="Live wound-dressing sensor readings from the DressCheck pod." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <title>DressCheck</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <div class="bg" aria-hidden="true"></div>
@@ -33,62 +41,103 @@
   <main>
     <section class="readings" aria-label="Live readings">
       <article class="tile">
-        <h2>Centre moisture</h2>
+        <h2>Moisture <span class="simple">(moisture sensor)</span></h2>
         <p class="value"><span id="v-center">—</span><span class="unit">%</span></p>
+        <p class="range" id="range-center"></p>
       </article>
       <article class="tile">
-        <h2>Edge moisture</h2>
-        <p class="value"><span id="v-edge">—</span><span class="unit">%</span></p>
-      </article>
-      <article class="tile">
-        <h2>Temp difference</h2>
+        <h2>Temp difference (wound − reference) <span class="simple">(temperature sensors)</span></h2>
         <p class="value"><span id="v-temp">—</span><span class="unit">°C</span></p>
+        <p class="range" id="range-temp"></p>
       </article>
       <article class="tile">
-        <h2>Estimated pH</h2>
+        <h2>Estimated pH <span class="simple">(colour sensor)</span></h2>
         <p class="value"><span id="v-ph">—</span></p>
+        <p class="range" id="range-ph"></p>
       </article>
       <article class="tile">
-        <h2>Lift</h2>
+        <h2>Lift (0 = flat, 1 = max bend) <span class="simple">(flex sensor)</span></h2>
         <p class="value"><span id="v-lift">—</span></p>
+        <p class="range" id="range-lift"></p>
       </article>
       <article class="tile">
-        <h2>Hours worn</h2>
+        <h2>Dressing worn (since New dressing)</h2>
         <p class="value"><span id="v-hours">—</span><span class="unit">h</span></p>
+        <p class="range" id="range-hours"></p>
       </article>
+      <article class="tile">
+        <h2>Wound temp <span class="simple">(temperature sensor)</span></h2>
+        <p class="value"><span id="v-twound">—</span><span class="unit">°C</span></p>
+        <p class="range" id="range-twound"></p>
+      </article>
+      <article class="tile">
+        <h2>Reference temp <span class="simple">(temperature sensor)</span></h2>
+        <p class="value"><span id="v-tref">—</span><span class="unit">°C</span></p>
+        <p class="range" id="range-tref"></p>
+      </article>
+      <article class="tile">
+        <h2>Sensor status</h2>
+        <p id="v-faults" class="status">—</p>
+        <p class="range">Lists any sensor that is unplugged, shorted or out of range. Colour sensor is optional.</p>
+      </article>
+    </section>
+
+    <section class="raw" aria-label="Raw sensor signals">
+      <div class="raw-head">
+        <h2>Raw sensor signals</h2>
+        <p class="hint">Exactly what each Feather pin sees, updated every second. 0–3300 mV. “Change” is since you connected.</p>
+      </div>
+      <div class="readings" id="raw-tiles"></div>
     </section>
 
     <section class="charts" aria-label="Trends">
       <div class="chart-block">
-        <h2>Moisture trend</h2>
-        <p class="legend"><span class="key" style="--c: var(--chart-a)">Centre</span><span class="key" style="--c: var(--chart-b)">Edge</span></p>
+        <h2>Raw signals (mV)</h2>
+        <p class="legend" id="raw-legend"></p>
+        <canvas id="chart-raw" width="640" height="200"></canvas>
+      </div>
+      <div class="chart-block">
+        <h2>Moisture trend <span class="simple">(moisture sensor)</span></h2>
+        <p class="legend"><span class="key" style="--c: var(--chart-a)">Moisture (A2)</span></p>
         <canvas id="chart-moisture" width="640" height="180"></canvas>
       </div>
       <div class="chart-block">
-        <h2>Temp difference &amp; pH</h2>
+        <h2>Sensor temperatures <span class="simple">(temperature sensors)</span></h2>
+        <p class="legend"><span class="key" style="--c: var(--chart-c)">Wound</span><span class="key" style="--c: var(--chart-b)">Reference (dashed)</span><span>(15 to 45 °C; off-scale readings pin to an edge)</span></p>
+        <canvas id="chart-temps" width="640" height="180"></canvas>
+      </div>
+      <div class="chart-block">
+        <h2>Temp difference &amp; pH <span class="simple">(temperature + colour sensors)</span></h2>
         <p class="legend"><span class="key" style="--c: var(--chart-c)">Temp diff (−1 to 4 °C)</span><span class="key" style="--c: var(--chart-a)">pH (4 to 9)</span></p>
         <canvas id="chart-temp-ph" width="640" height="180"></canvas>
       </div>
     </section>
 
     <section class="clinician" aria-label="Clinician thresholds">
-      <h2>Clinician thresholds</h2>
-      <p class="hint">These are compared on the pod. Soft advisories use plain language — the device does not diagnose.</p>
+      <h2>Thresholds &amp; sensitivity</h2>
+      <p class="hint">Drag a slider or type a value, then press <strong>Save to pod</strong>. These are compared on the pod. Soft advisories use plain language — the device does not diagnose.</p>
       <form id="threshold-form" class="form">
+        <h3 class="form-group">Clinician thresholds</h3>
         <label>Saturation soon % <input name="saturationSoonPct" type="number" step="1" min="0" max="100" value="60" /></label>
         <label>Saturation now % <input name="saturationNowPct" type="number" step="1" min="0" max="100" value="85" /></label>
-        <label>Edge wet % <input name="edgeWetPct" type="number" step="1" min="0" max="100" value="30" /></label>
+        <label hidden>Edge wet % <input name="edgeWetPct" type="number" step="1" min="0" max="100" value="30" /></label>
         <label>Temp rise °C <input name="tempDiffRiseC" type="number" step="0.1" min="0" max="10" value="2.0" /></label>
         <label>Temp sustain min <input name="tempSustainMin" type="number" step="1" min="1" max="240" value="30" /></label>
         <label>pH alert <input name="pHAlert" type="number" step="0.1" min="4" max="9" value="7.5" /></label>
         <label>pH sustain min <input name="pHSustainMin" type="number" step="1" min="1" max="240" value="30" /></label>
         <label>Max wear hours <input name="maxWearHours" type="number" step="1" min="1" max="168" value="72" /></label>
         <label>Lift threshold <input name="liftThreshold" type="number" step="0.01" min="0" max="1" value="0.25" /></label>
+        <h3 class="form-group">Sensor sensitivity</h3>
+        <label>Flex sensitivity: mV of bend for full lift <span class="simple">(lower = more sensitive)</span> <input name="liftFullScaleMv" type="number" step="10" min="50" max="1500" value="300" /></label>
+        <label>Moisture "fully wet" level, mV <span class="simple">(100 % wet; soaked pad read ~3040)</span> <input name="moistureWetMv" type="number" step="50" min="500" max="3100" value="2800" /></label>
+        <label>pH match leniency, colour points <span class="simple">(higher = accepts rougher matches)</span> <input name="phMatchRadius" type="number" step="0.5" min="2" max="20" value="8" /></label>
         <div class="form-actions">
           <button type="submit" class="btn primary">Save to pod</button>
           <button type="button" id="btn-new-dressing" class="btn ghost">New dressing</button>
           <button type="button" id="btn-ack" class="btn ghost">Ack alert</button>
           <button type="button" id="btn-self-test" class="btn ghost">Self test</button>
+          <button type="button" id="btn-buzz" class="btn ghost" title="Motor runs while you hold this (5 s max)">Hold to buzz</button>
+          <button type="button" id="btn-white" class="btn ghost" title="Hold the colour sensor 3–5 mm over plain white paper first">Calibrate white</button>
         </div>
       </form>
       <p id="form-status" class="form-status" role="status"></p>
@@ -99,6 +148,6 @@
     <p>Prototype for natHacks 2026 · phantom testing only · non-diagnostic</p>
   </footer>
 
-  <script src="app.js" type="module"></script>
+  <script src="app.js?v=17" type="module"></script>
 </body>
 </html>

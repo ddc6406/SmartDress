@@ -11,12 +11,19 @@
   --chart-a: #1f6b4f;
   --chart-b: #3d7ea6;
   --chart-c: #b35a2a;
+  --chart-d: #7a4fb0;
+  --chart-e: #b0447a;
+  --ok: #1f6b4f;
+  --bad: #a83a2a;
   --radius: 14px;
   --font: "DM Sans", "Segoe UI", sans-serif;
   --display: "Fraunces", Georgia, serif;
 }
 
 * { box-sizing: border-box; }
+
+/* `hidden` must win over component display rules (e.g. .form label { display: flex }). */
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -45,6 +52,13 @@ html, body {
   padding: 1.5rem 1.5rem 0.75rem;
   max-width: 1100px;
   margin: 0 auto;
+  /* Stays on screen while scrolling, so Connect / Disconnect are always reachable. */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(238, 243, 239, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .brand-mark {
@@ -77,8 +91,11 @@ html, body {
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.btn:hover { transform: translateY(-1px); }
+@media (hover: hover) {
+  .btn:hover { transform: translateY(-1px); }
+}
 .btn:active { transform: translateY(0); }
+.btn { min-height: 44px; touch-action: manipulation; }
 .btn.primary {
   background: var(--accent);
   border-color: transparent;
@@ -289,4 +306,86 @@ footer {
   margin-right: 0.35rem;
   border-radius: 50%;
   background: var(--c);
+}
+
+.tile .status {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.raw { margin-bottom: 1.5rem; }
+.raw-head h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+.raw-head .hint { margin: 0 0 0.75rem; }
+.tile .pin { margin: 0.15rem 0 0; font-size: 0.75rem; color: var(--muted); }
+.tile .verdict { margin: 0.35rem 0 0; font-size: 0.85rem; line-height: 1.35; }
+.tile .verdict.ok { color: var(--ok); }
+.tile .verdict.bad { color: var(--bad); }
+.tile .delta { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--muted); }
+.swatch {
+  height: 2rem;
+  margin: 0.45rem 0 0.2rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+}
+.simple { font-weight: 400; color: var(--muted); }
+.tile .range {
+  margin: 0.5rem 0 0;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.form-group {
+  grid-column: 1 / -1;
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+}
+.form input[type="range"] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+  width: 100%;
+}
+
+/* ---------- Phones ---------- */
+#btn-buzz {
+  -webkit-touch-callout: none; /* holding it shouldn't open the copy/share menu */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.form input[type="range"] { height: 28px; } /* bigger thumb target on touch screens */
+
+@media (max-width: 600px) {
+  .top, .conn, .advisory, main, footer {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-bottom: 0.6rem;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .brand-mark { font-size: 1.7rem; }
+  .brand-sub { display: none; } /* keep the sticky bar short on phones */
+  .actions { flex: 1 1 100%; }
+  .actions .btn { flex: 1 1 0; }
+  .conn { font-size: 0.9rem; }
+  .advisory { margin-left: 1rem; margin-right: 1rem; }
+  .tile { padding: 0.9rem 1rem; }
+  .tile .value { font-size: 1.75rem; }
+  .clinician { padding: 1rem; }
+  .clinician h2 { font-size: 1.25rem; }
+  .form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-actions .btn.primary { grid-column: 1 / -1; } /* Save to pod spans the full width */
+  .form input[type="number"] { font-size: 16px; } /* 16px stops iPhone zooming in on focus */
+  footer { padding-bottom: max(2rem, env(safe-area-inset-bottom)); }
 }

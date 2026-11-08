@@ -11,6 +11,9 @@ Thresholds defaultThresholds() {
   t.pHSustainMin = 30;
   t.maxWearHours = 72;
   t.liftThreshold = 0.25f;
+  t.liftFullScaleMv = 300.0f;
+  t.moistureWetMv = 2800.0f;
+  t.phMatchRadius = PH_MATCH_RADIUS;
   return t;
 }
 
@@ -22,7 +25,8 @@ bool thresholdsValid(const Thresholds& t) {
          in(t.edgeWetPct, 0, 100) && in(t.tempDiffRiseC, 0, 10) &&
          in(t.tempSustainMin, 1, 240) && in(t.pHAlert, 4, 9) &&
          in(t.pHSustainMin, 1, 240) && in(t.maxWearHours, 1, 168) &&
-         in(t.liftThreshold, 0, 1);
+         in(t.liftThreshold, 0, 1) && in(t.liftFullScaleMv, 50, 1500) &&
+         in(t.moistureWetMv, 500, 3100) && in(t.phMatchRadius, 2, 20);
 }
 
 const char* urgencyName(Urgency u) {

@@ -11,7 +11,7 @@ void pinsInit() {
   pinMode(Pins::NEOPIXEL_POWER, OUTPUT);
   digitalWrite(Pins::NEOPIXEL_POWER, HIGH);  // power NeoPixel + STEMMA QT
 
-  pinMode(Pins::USER_BTN, INPUT_PULLUP);
+  pinMode(Pins::USER_BTN, INPUT);  // GPIO38 is input-only (no internal pull-up); the Feather has an external one
 
   // ADC1 sense pins are input-only on ESP32; analogRead configures them
   analogReadResolution(12);

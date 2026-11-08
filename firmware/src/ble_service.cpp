@@ -13,8 +13,9 @@ namespace {
   BLECharacteristic* chCommand = nullptr;
   bool deviceConnected = false;
 
-  // THRESHOLDS wire layout (little-endian): f32 f32 f32 f32 u16 u16 f32 u16 f32. Mirrored in app.js.
-  constexpr size_t THRESHOLDS_LEN = 30;
+  // THRESHOLDS wire layout (little-endian): f32 f32 f32 f32 u16 u16 f32 u16 f32, then the
+  // sensitivity settings f32 liftFullScaleMv, f32 moistureWetMv, f32 phMatchRadius. Mirrored in app.js.
+  constexpr size_t THRESHOLDS_LEN = 42;
 
   ThresholdsWriteCb thresholdsCb = nullptr;
   CommandCb commandCb = nullptr;
@@ -30,6 +31,9 @@ namespace {
     memcpy(buf + 20, &t.pHAlert, 4);
     memcpy(buf + 24, &t.maxWearHours, 2);
     memcpy(buf + 26, &t.liftThreshold, 4);
+    memcpy(buf + 30, &t.liftFullScaleMv, 4);
+    memcpy(buf + 34, &t.moistureWetMv, 4);
+    memcpy(buf + 38, &t.phMatchRadius, 4);
   }
 
   bool decodeThresholds(const uint8_t* buf, size_t len, Thresholds& t) {
@@ -43,6 +47,9 @@ namespace {
     memcpy(&t.pHAlert, buf + 20, 4);
     memcpy(&t.maxWearHours, buf + 24, 2);
     memcpy(&t.liftThreshold, buf + 26, 4);
+    memcpy(&t.liftFullScaleMv, buf + 30, 4);
+    memcpy(&t.moistureWetMv, buf + 34, 4);
+    memcpy(&t.phMatchRadius, buf + 38, 4);
     return true;
   }
 
@@ -90,7 +97,7 @@ void bleInit(ThresholdsWriteCb onThresholds, CommandCb onCommand) {
   commandCb = onCommand;
 
   BLEDevice::init("DressCheck");
-  BLEDevice::setMTU(247);  // SENSOR_PACKET is 22 bytes; the default 23-byte MTU only carries 20
+  BLEDevice::setMTU(247);  // SENSOR_PACKET is 50 bytes; the default 23-byte MTU only carries 20
   server = BLEDevice::createServer();
   server->setCallbacks(new ServerCallbacks());
 
@@ -155,17 +162,32 @@ bool bleConnected() { return deviceConnected; }
 SensorPacket makePacket(const SensorReadings& r, const DecisionResult& d) {
   SensorPacket p{};
   p.timestampMs = millis();
-  p.centerPctX10 = static_cast<uint16_t>(r.centerPct * 10.0f);
-  p.edgePctX10 = static_cast<uint16_t>(r.edgePct * 10.0f);
-  p.tempDiffX100 = static_cast<int16_t>(r.tempDiffC * 100.0f);
+  auto scaled = [](float v, float k) { return isnan(v) ? VALUE_UNAVAILABLE : static_cast<uint16_t>(v * k); };
+  p.centerPctX10 = scaled(r.centerPct, 10.0f);
+  p.edgePctX10 = scaled(r.edgePct, 10.0f);
   p.pHEstX100 = isnan(r.pHEst) ? 0 : static_cast<uint16_t>(r.pHEst * 100.0f);
-  p.liftX1000 = static_cast<uint16_t>(r.lift * 1000.0f);
-  p.hoursWornX10 = static_cast<uint16_t>(r.hoursWorn * 10.0f);
+  p.liftX1000 = scaled(r.lift, 1000.0f);
+  p.hoursWornX10 = scaled(r.hoursWorn, 10.0f);
   p.faults = r.faults;
   p.urgency = static_cast<uint8_t>(d.urgency);
   p.reason0 = d.reasonCount > 0 ? d.reasons[0] : 0;
   p.reason1 = d.reasonCount > 1 ? d.reasons[1] : 0;
   p.reason2 = d.reasonCount > 2 ? d.reasons[2] : 0;
   p.reason3 = d.reasonCount > 3 ? d.reasons[3] : 0;
+  auto tempX100 = [](float c) { return isnan(c) ? TEMP_UNAVAILABLE : static_cast<int16_t>(c * 100.0f); };
+  p.tWoundX100 = tempX100(r.tWoundC);
+  p.tempDiffX100 = tempX100(r.tempDiffC);
+  p.tRefX100 = tempX100(r.tRefC);
+  p.centerMv = r.centerMv;
+  p.edgeMv = r.edgeMv;
+  p.liftMv = r.liftMv;
+  p.tWoundMv = r.tWoundMv;
+  p.tRefMv = r.tRefMv;
+  const ColorReading& col = lastColor();
+  p.colR = col.r; p.colG = col.g; p.colB = col.b; p.colC = col.c;
+  p.matchX10 = isnan(col.matchDist) ? MATCH_NO_READING
+             : static_cast<uint16_t>(fminf(col.matchDist * 10.0f, 65000.0f));
+  p.nearestPhX100 = isnan(col.nearestPh) ? VALUE_UNAVAILABLE : static_cast<uint16_t>(col.nearestPh * 100.0f);
+  p.colFlags = col.whiteSet ? COLFLAG_WHITE_SET : 0;
   return p;
 }

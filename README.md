@@ -57,14 +57,16 @@ Pod: **Adafruit Feather ESP32 V2** (3.3 V logic only). ADC1 only for sensing.
 | --- | --- | --- |
 | Moisture EXC | 26 | Pulse HIGH ~5 ms, then LOW |
 | Motor | 25 | Via 1k → NPN (direct; no driver board); flyback diode |
-| Centre moisture | 34 | 100k to GND |
-| Edge moisture | 39 | 100k to GND |
+| Moisture (sensing thread) | 34 | 100k to GND |
+| Edge moisture | 39 | Not fitted: the pad uses two threads (EXC on A0, sensing on A2). Set `Pins::EDGE_ZONE_FITTED` to add a third. |
 | Wound thermistor | 36 | 10k to 3V |
 | Reference thermistor | 37 | 10k to 3V |
 | Flex (lift) | 33 | 47k to 3V |
 | Colour sensor | SDA 22 / SCL 20 | STEMMA QT (TCS34725 assumed) |
 | NeoPixel | 0 (onboard) / 14 optional | Power enable GPIO2 if needed |
 | Ack button | 38 | Built-in |
+
+**Names printed on the Feather** (it is silkscreened with these, not GPIO numbers): EXC = **A0**, Motor = **A1**, Centre moisture = **A2**, Edge moisture = **A3**, Wound thermistor = **A4**, Reference thermistor = **37**, Flex = **33**, colour sensor on the STEMMA QT port (SDA/SCL), power = **3V** / **GND**.
 
 ### Breadboard layout
 
@@ -137,9 +139,9 @@ Run through this once on the real rig before the demo. The firmware has only bee
 - [ ] Serial monitor at 115200 shows `=== DressCheck pod ===` and `TCS34725 present` (or the missing-sensor line if it is unplugged).
 
 **Sensors (dry dressing, send `SELF_TEST`)**
-- [ ] Dry moisture reads above 20 mV on both zones. At or below 20 mV the pod reports a moisture fault on a healthy dry pad; if so, relax the open-circuit check in `checkFaults()`.
+- [ ] Dry moisture reads about 140 mV on both zones. That is the ESP32 ADC floor (it reads ~140 mV at 0 V), measured on the real board with the pad unwired. An open moisture wire therefore looks like a dry pad; only a node stuck at ≥ 3100 mV (shorted) is flagged as a fault.
 - [ ] Wet the pad: centre/edge mV rise and the percentage climbs toward 100.
-- [ ] Both thermistors read plausible room temperature (about 15–35 °C), and warming one shows a difference.
+- [ ] Both thermistors read plausible room temperature (about 15–35 °C). Pinching the bead should raise its temperature by several °C within ~15 s (reference thermistor verified this way). A stuck reading near 116 °C means the pin sits at ~140 mV, i.e. at ground: check the 10k pull-up to 3V.
 - [ ] Unplug a thermistor: `faults` becomes non-zero and the pod goes to sensor fault.
 - [ ] Bend the flex sensor: lift rises from 0 toward 1.
 - [ ] Colour sensor: clear-channel count stays below 20000 with the LED on. Check the hue-to-pH table against a known buffer or strip.
@@ -156,6 +158,33 @@ Run through this once on the real rig before the demo. The firmware has only bee
 - [ ] Chrome connects and live packets arrive. If tiles stay blank, the MTU is too small (packet is 22 bytes).
 - [ ] Save thresholds from the app, power-cycle the pod, reconnect: values persisted. An out-of-range value (for example soon above now) is rejected.
 - [ ] Disconnect the phone: the pod still alerts on its own.
+
+---
+
+## Bench testing with parts missing
+
+The default build is strict: a missing moisture, thermistor, or flex sensor raises `SENSOR_FAULT` (flashing orange) and blocks the other alerts. A missing colour sensor is harmless (pH shows "—").
+
+For bench work there is a separate `bench` environment. **Do not use it for the demo.**
+
+```bash
+cd firmware
+pio run -e bench -t upload --upload-port <your port>   # bench build
+pio run -t upload --upload-port <your port>            # normal build
+```
+
+`bench` skips moisture (holds it at 0 %) and enables serial commands, sent as single characters in the serial monitor:
+
+| Key | Does |
+| --- | --- |
+| `n` | Start a new dressing session |
+| `s` | Self-test (one reading of every sensor) |
+| `d` | Diagnose: plain-English verdict per analog pin (at ground / at 3V / in range) |
+| `r` | One line of raw pin voltages and temperatures |
+| `v` | Buzz the motor for 600 ms |
+| `a` | Acknowledge the alert |
+
+Close the serial monitor before flashing; only one program can hold the port.
 
 ---
 
