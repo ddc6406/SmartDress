@@ -130,57 +130,29 @@ python3 -m http.server 8765
 
 ---
 
-## Hardware validation checklist
-
-Run through this once on the real rig before the demo. The firmware has only been compile-checked against stubs, not run on the pod.
-
-**Build**
-- [ ] `pio run` succeeds. If `ble_service.cpp` fails on `getValue()` types, pin the `espressif32` platform version in `platformio.ini`.
-- [ ] Serial monitor at 115200 shows `=== DressCheck pod ===` and `TCS34725 present` (or the missing-sensor line if it is unplugged).
-
-**Sensors (dry dressing, send `SELF_TEST`)**
-- [ ] Dry moisture reads about 140 mV on both zones. That is the ESP32 ADC floor (it reads ~140 mV at 0 V), measured on the real board with the pad unwired. An open moisture wire therefore looks like a dry pad; only a node stuck at ≥ 3100 mV (shorted) is flagged as a fault.
-- [ ] Wet the pad: centre/edge mV rise and the percentage climbs toward 100.
-- [ ] Both thermistors read plausible room temperature (about 15–35 °C). Pinching the bead should raise its temperature by several °C within ~15 s (reference thermistor verified this way). A stuck reading near 116 °C means the pin sits at ~140 mV, i.e. at ground: check the 10k pull-up to 3V.
-- [ ] Unplug a thermistor: `faults` becomes non-zero and the pod goes to sensor fault.
-- [ ] Bend the flex sensor: lift rises from 0 toward 1.
-- [ ] Colour sensor: clear-channel count stays below 20000 with the LED on. Check the hue-to-pH table against a known buffer or strip.
-
-**Behaviour**
-- [ ] Boot with an active session: no orange fault flash and no buzz in the first 10 s.
-- [ ] Long-press the button (about 1.5 s) or send `NEW_DRESSING`: blue LED, then green, no immediate red alert.
-- [ ] Change dressings after a wet one: readings restart from dry, not from the old values.
-- [ ] Reboot mid-session: the log says `session restored` with a sensible hours-worn figure, not hundreds of hours.
-- [ ] Unplug the colour sensor: moisture alerts still fire.
-
-**Alerts and BLE**
-- [ ] Each urgency shows its colour and vibration pattern; a short button press silences the motor.
-- [ ] Chrome connects and live packets arrive. If tiles stay blank, the MTU is too small (packet is 22 bytes).
-- [ ] Save thresholds from the app, power-cycle the pod, reconnect: values persisted. An out-of-range value (for example soon above now) is rejected.
-- [ ] Disconnect the phone: the pod still alerts on its own.
-
----
-
 ## Bench testing with parts missing
 
-The default build is strict: a missing moisture, thermistor, or flex sensor raises `SENSOR_FAULT` (flashing orange) and blocks the other alerts. A missing colour sensor is harmless (pH shows "—").
+The default build is strict: a missing thermistor or flex sensor raises `SENSOR_FAULT` (flashing orange) and blocks the other alerts. A missing colour sensor is harmless (pH shows "—").
 
-For bench work there is a separate `bench` environment. **Do not use it for the demo.**
+Two extra builds exist for bench work. **Do not use either for the demo.**
 
 ```bash
 cd firmware
-pio run -e bench -t upload --upload-port <your port>   # bench build
-pio run -t upload --upload-port <your port>            # normal build
+pio run -t upload --upload-port <your port>             # normal build (demo)
+pio run -e debug -t upload --upload-port <your port>    # normal + serial commands, faster updates
+pio run -e bench -t upload --upload-port <your port>    # debug, but moisture skipped (pad not wired)
 ```
 
-`bench` skips moisture (holds it at 0 %) and enables serial commands, sent as single characters in the serial monitor:
+Serial commands (debug and bench builds), sent as single characters in the serial monitor:
 
 | Key | Does |
 | --- | --- |
 | `n` | Start a new dressing session |
+| `w` | Capture the colour sensor's white reference (hold it over white paper) |
 | `s` | Self-test (one reading of every sensor) |
 | `d` | Diagnose: plain-English verdict per analog pin (at ground / at 3V / in range) |
 | `r` | One line of raw pin voltages and temperatures |
+| `p` | Wiring probe on/off: jumper from pin 32's row to any breadboard row to see what it is |
 | `v` | Buzz the motor for 600 ms |
 | `a` | Acknowledge the alert |
 
@@ -188,29 +160,9 @@ Close the serial monitor before flashing; only one program can hold the port.
 
 ---
 
-## Demo flow (15 + 5)
-
-1. Show dressing + pod on phantom; explain non-diagnostic framing.  
-2. Live readings on the web dashboard (trends / soft advisories from the pod).  
-3. Disconnect phone → pod still alerts on-device (motor / NeoPixel).  
-4. Q&A.
-
----
-
-## Safety & event rules
-
-- No real wounds; phantom / fabric only.  
-- Rented natHacks hardware returned unmodified by **7 PM MT, Nov 9**. Do not solder rented kit boards.  
-- Code and project assets written **during the event** (started 7 PM MT, Nov 6). Planning/pseudocode from before is fine; no pre-written firmware/app paste-in.  
-- Submission: public GitHub + README, 1,300-char summary, 3,000-char About, live demo. Deadline **Nov 9, 11 AM MT**.
-
----
-
 ## Team & credits
 
 **Team:** Tirthrajsinh (Tirth) Gohil, Mehtab Singh, Om Arey, Shreyas Prassana, Dhairya Chauhan  
-
-**Hackathon:** natHacks 2026  
 **Hardware:** Adafruit Feather ESP32 V2, NTC thermistors (Beta 3950), conductive-thread moisture pad, flex sensor, STEMMA TCS34725 colour sensor, vibration motor (direct NPN drive)  
 
 **Libraries / assets:** PlatformIO (Espressif32), Adafruit TCS34725, Adafruit NeoPixel, ESP32 Arduino BLE stack, team schematic PNGs in `docs/schematics/`
