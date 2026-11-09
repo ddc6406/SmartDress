@@ -403,3 +403,10 @@ footer {
 .tile.overall { margin-bottom: 0.85rem; }
 .tile.overall .word { font-size: 1.6rem; }
 .tile.overall .range { font-size: 0.9rem; }
+
+/* pH card: the strip chart as one continuous gradient, with a marker at the estimate. */
+.phscale { margin-top: 0.4rem; }
+.phbar { position: relative; height: 14px; border-radius: 7px; border: 1px solid var(--line); }
+.phmark { position: absolute; top: -5px; width: 4px; height: 22px; margin-left: -2px; border-radius: 2px;
+  background: var(--ink); box-shadow: 0 0 0 2px #fff; }
+.phticks { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }

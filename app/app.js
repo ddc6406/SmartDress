@@ -250,6 +250,24 @@ function readThresholdsFromForm() {
   };
 }
 
+// The strip chart's colours, pH 1 -> 14 (same samples as kChart in firmware/src/sensors.cpp:
+// chromaticity, brightness-normalised for display). Drawn as one continuous gradient.
+const PH_CHART_RGB = [
+  [0.534, 0.205, 0.260], [0.564, 0.232, 0.204], [0.607, 0.259, 0.134], [0.548, 0.304, 0.148],
+  [0.539, 0.357, 0.104], [0.498, 0.385, 0.117], [0.486, 0.413, 0.101], [0.397, 0.381, 0.222],
+  [0.420, 0.400, 0.180], [0.342, 0.393, 0.265], [0.277, 0.345, 0.379], [0.291, 0.274, 0.435],
+  [0.402, 0.237, 0.361], [0.377, 0.272, 0.351],
+];
+function paintPhGradient() {
+  const bar = document.getElementById("ph-bar");
+  if (!bar) return;
+  const stops = PH_CHART_RGB.map(([r, g, b], i) => {
+    const k = 235 / Math.max(r, g, b);
+    return `rgb(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}) ${((i / 13) * 100).toFixed(1)}%`;
+  });
+  bar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
+}
+
 const URGENCY_WORD = ["All OK", "Change soon", "Change now", "Contact clinic", "Check sensors"];
 const URGENCY_TONE = ["ok", "warn", "bad", "bad", "bad"];
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -282,16 +300,20 @@ function readable(p) {
     r.temp.push(`Skin reference ${fmt(p.tRefC, 1)} °C, so the wound is ${d >= 0 ? "+" : ""}${fmt(d, 1)} °C. Alert if ${t.tempDiffRiseC} °C+ warmer for ${t.tempSustainMin} min.`);
   }
 
-  // pH from the colour sensor's strip match.
+  // pH from the colour sensor. The pod places the colour on one continuous gradient through all
+  // 14 chart colours (pH 1 -> 14) and reads off the pH at the closest point, in-between values
+  // included, so there's always an estimate whenever something is under the sensor. How close the
+  // colour sat to that gradient only changes how much to trust it (and whether alerts may use it).
   r.ph = null;
   if (p.colC == null || p.colC === 0) r.phWord = ["No colour sensor", "bad", "Colour sensor not detected on the STEMMA QT port."];
-  else if (p.colMatch === MATCH_NO_READING) r.phWord = ["No strip", "", "Nothing under the sensor (too dark), or glare."];
-  else if (p.colMatch / 10 > t.phMatchRadius) r.phWord = ["No strip", "", "The colour under the sensor isn't a pH strip colour."];
+  else if (p.colMatch === MATCH_NO_READING || p.colNearestPh == null) r.phWord = ["No strip", "", "Nothing under the sensor (too dark), or glare."];
   else {
     r.ph = p.colNearestPh;
-    const sure = p.colWhiteSet ? "Calibrated reading." : "Rough: press Calibrate white for a better reading.";
+    const d = p.colMatch / 10;
+    const fit = d <= 2 ? "exact" : d <= 5 ? "good" : d <= t.phMatchRadius ? "rough" : "off-gradient (guess only)";
+    const cal = p.colWhiteSet ? "" : " Press Calibrate white for a better reading.";
     r.phWord = r.ph > t.pHAlert ? ["Above limit", "warn"] : ["Within limit", "ok"];
-    r.phWord.push(`Lower = more acidic. Limit ${t.pHAlert}. ${sure}`);
+    r.phWord.push(`Colour fit: ${fit}, ${d.toFixed(1)} pts. Lower = more acidic; limit ${t.pHAlert}.${cal}`);
   }
 
   // Peeling: how far the flex sensor has bent, as a share of the "peeling" limit. liftMv is the
@@ -341,6 +363,11 @@ function updateSummary(p) {
   setCard("moisture", r.moisture, fmt(r.moisturePct, 0));
   setCard("temp", r.temp, fmt(r.tWound, 1));
   setCard("ph", r.phWord, fmt(r.ph, 1));
+  const mark = document.getElementById("ph-mark");
+  if (mark) {
+    mark.hidden = r.ph == null;
+    if (r.ph != null) mark.style.left = `${((clamp(r.ph, 1, 14) - 1) / 13) * 100}%`;
+  }
   setCard("lift", r.lift, fmt(r.liftPct, 0));
   setCard("hours", r.hoursWord, fmt(r.hours, 1));
   return r;
@@ -424,6 +451,8 @@ function resetLiveView(message) {
   state.flexFlat = null;
   state.flexMin = null;
   for (const id of ["moisture", "temp", "ph", "lift", "hours"]) setCard(id, ["—", "", ""], "—");
+  const mark = document.getElementById("ph-mark");
+  if (mark) mark.hidden = true;
   setCard("overall", [message, "", message === "Not connected" ? "Connect the pod to see live readings." : ""]);
   state.rawBaseline = null;
   state.rawCount = 0;
@@ -453,7 +482,7 @@ function colourVerdict(p) {
   const d = p.colMatch / 10;
   const radius = state.thresholds.phMatchRadius;
   if (d > radius) {
-    return [`Not a strip colour (${d.toFixed(1)} pts off the chart; limit ${radius}). Closest is shown.`, false];
+    return [`Off the gradient (${d.toFixed(1)} pts; leniency ${radius}): nearest point shown as a guess, not used for alerts.`, false];
   }
   if (!p.colWhiteSet) {
     return [`Rough estimate (${d.toFixed(1)} pts): not calibrated. Hold over white paper and press Calibrate white.`, false];
@@ -829,6 +858,7 @@ buzzBtn.addEventListener("keydown", (ev) => { if ((ev.key === " " || ev.key === 
 buzzBtn.addEventListener("keyup", (ev) => { if (ev.key === " " || ev.key === "Enter") buzzStop(); });
 
 buildRawTiles();
+paintPhGradient();
 addSliders();
 applyThresholdsToForm(state.thresholds);
 renderRanges();
