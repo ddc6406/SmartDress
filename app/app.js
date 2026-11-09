@@ -89,8 +89,8 @@ const state = {
     pHAlert: 7.5,
     pHSustainMin: 30,
     maxWearHours: 72,
-    liftThreshold: 0.25,
-    liftFullScaleMv: 300,
+    liftThreshold: 1,
+    liftFullScaleMv: 650, // peeling level: flipped flex mV
     moistureWetMv: 2800,
     phMatchRadius: 8,
   },
@@ -297,15 +297,18 @@ function readable(p) {
   // Peeling: how far the flex sensor has bent, as a share of the "peeling" limit. liftMv is the
   // flipped reading (~200 flat, rising with bend), so bend = rise above the flat reading.
   const fMv = p.liftMv;
-  const base = state.rawBaseline?.liftMv;
-  const lift = p.lift ?? (fMv != null && base != null ? Math.max(0, (fMv - base) / t.liftFullScaleMv) : null);
-  r.liftPct = lift == null ? null : (lift / t.liftThreshold) * 100;
-  const since = p.lift != null ? "since New dressing" : "since you connected";
+  // Lowest reading since connecting = flattest seen, so connecting while it's bent still works.
+  if (fMv != null && fMv < 3150) state.flexMin = Math.min(state.flexMin ?? fMv, fMv);
+  // 0 % = flat (reading at New dressing, else the flattest since you connected), 100 % = the
+  // peeling level (an absolute flipped reading, ~650 mV). From mV so it can honestly pass 100 %.
+  const flat = state.flexFlat ?? state.flexMin;
+  r.liftPct = fMv == null || flat == null ? null : Math.max(0, ((fMv - flat) / Math.max(50, t.liftFullScaleMv - flat)) * 100);
+  const since = state.flexFlat != null ? "at New dressing" : "since you connected";
   if (fMv != null && fMv >= 3150) r.lift = ["Not connected", "bad", "Flex pin reads 0 V: check its 3V feed and wires."];
   else if (r.liftPct == null) r.lift = ["—", "", ""];
   else {
     r.lift = r.liftPct >= 100 ? ["Peeling", "bad"] : r.liftPct >= 30 ? ["Bending", "warn"] : ["Flat", "ok"];
-    r.lift.push(`Bend ${since}. Flat ≈ 200 mV (flipped); bending raises it. 100 % = peeling alert (+${Math.round(t.liftThreshold * t.liftFullScaleMv)} mV).`);
+    r.lift.push(`Now ${fMv} mV. 0 % = flat ${since} (${flat} mV), 100 % = peeling at ${t.liftFullScaleMv} mV.`);
   }
 
   // Dressing age only exists once New dressing is pressed.
@@ -418,6 +421,8 @@ function updateRaw(packet) {
 // sit on screen looking live.
 function resetLiveView(message) {
   state.last = null;
+  state.flexFlat = null;
+  state.flexMin = null;
   for (const id of ["moisture", "temp", "ph", "lift", "hours"]) setCard(id, ["—", "", ""], "—");
   setCard("overall", [message, "", message === "Not connected" ? "Connect the pod to see live readings." : ""]);
   state.rawBaseline = null;
@@ -740,7 +745,8 @@ function startMock() {
     const edge = Math.max(0, center - 35 + Math.sin(t / 5));
     const tempDiff = 0.4 + Math.sin(t / 8) * 0.2 + (t > 50 ? 0.3 : 0);
     const pHEst = 6.8 + Math.min(0.9, t / 80);
-    const lift = t > 70 ? 0.3 : 0.05 + Math.random() * 0.02;
+    const liftMv = t > 70 ? 720 : 200 + Math.round(Math.random() * 20);
+    const lift = Math.min(1, (liftMv - 200) / 450);
     const hoursWorn = t / 12;
 
     const reasons = [];
@@ -757,7 +763,7 @@ function startMock() {
       tRefC: 33.5 - 9.5,
       centerMv: Math.round(142 + center * 25),
       edgeMv: Math.round(142 + edge * 25),
-      liftMv: Math.round(200 + lift * 800),
+      liftMv,
       // Mock colour sensor: a calibrated strip whose colour drifts mustard -> olive as pH rises.
       colR: Math.round(1150 - (pHEst - 6.8) * 300),
       colG: Math.round(1050 - (pHEst - 6.8) * 120),
@@ -791,7 +797,11 @@ els.connect.addEventListener("click", connectBle);
 els.mock.addEventListener("click", startMock);
 els.disconnect.addEventListener("click", disconnectAll);
 els.form.addEventListener("submit", saveThresholds);
-els.newDressing.addEventListener("click", () => writeCommand(CMD.NEW_DRESSING));
+els.newDressing.addEventListener("click", () => {
+  // The pod captures its flat flex reading now too; mirror it so the Peeling card matches.
+  if (state.last?.liftMv != null) state.flexFlat = state.last.liftMv;
+  writeCommand(CMD.NEW_DRESSING);
+});
 els.ack.addEventListener("click", () => writeCommand(CMD.ACK_ALERT));
 els.selfTest.addEventListener("click", () => writeCommand(CMD.SELF_TEST));
 document.getElementById("btn-white").addEventListener("click", () => writeCommand(CMD.CALIBRATE_WHITE));

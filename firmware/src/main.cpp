@@ -89,7 +89,7 @@ namespace {
     return ok;
   }
 
-  void saveThresholds() { saveBlob("thresh", thresholds); }
+  void saveThresholds() { saveBlob("thresh2", thresholds); }  // "thresh2": flex settings changed meaning
 
   struct WhiteRef { uint16_t rgb[3]; };
 
@@ -111,7 +111,7 @@ namespace {
 
   void loadThresholds() {
     Thresholds t{};
-    if (loadBlob("thresh", t) && thresholdsValid(t)) thresholds = t;
+    if (loadBlob("thresh2", t) && thresholdsValid(t)) thresholds = t;
     setPhMatchRadius(thresholds.phMatchRadius);
   }
 
@@ -322,7 +322,7 @@ namespace {
       thresholds = pendingThresholds;
       setPhMatchRadius(thresholds.phMatchRadius);
       saveThresholds();
-      Serial.printf("[settings] flex full-scale=%.0f mV  wet=%.0f mV  pH leniency=%.1f pts  lift alert=%.2f\n",
+      Serial.printf("[settings] peeling level=%.0f mV  wet=%.0f mV  pH leniency=%.1f pts  lift alert=%.2f\n",
                     thresholds.liftFullScaleMv, thresholds.moistureWetMv, thresholds.phMatchRadius,
                     thresholds.liftThreshold);
     }

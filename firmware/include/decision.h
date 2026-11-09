@@ -36,7 +36,7 @@ struct Thresholds {
   uint16_t maxWearHours;
   float liftThreshold;
   // Sensitivity settings (adjustable from the dashboard, saved with the thresholds):
-  float liftFullScaleMv;   // mV above flat for lift = 1.0 (lower = more sensitive)
+  float liftFullScaleMv;   // peeling level: flipped flex mV where lift = 1.0 (default 650)
   float moistureWetMv;     // moisture pin mV that counts as 100 % wet
   float phMatchRadius;     // colour points a reading may sit off the strip chart and still count
 };

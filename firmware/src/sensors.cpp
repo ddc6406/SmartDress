@@ -211,12 +211,12 @@ uint16_t readLiftMv() {
   return pin >= 3300 ? 0 : static_cast<uint16_t>(3300 - pin);
 }
 
-float liftNormalized(uint16_t mv, const SessionState& session, float fullScaleMv) {
-  // Flat is captured at New dressing; the span comes from the live sensitivity setting, so
-  // moving the slider takes effect immediately without a new dressing. liftMv is the flipped
-  // reading, so it rises as the flex bends.
-  float denom = fullScaleMv;
-  if (!session.active || fabsf(denom) < 1.0f) return 0.0f;
+float liftNormalized(uint16_t mv, const SessionState& session, float peelMv) {
+  // 0 = the flat reading captured at New dressing, 1 = the peeling level (an absolute flipped
+  // reading, measured ~600-700 mV when the dressing peels). Moving the slider applies at once.
+  if (!session.active) return 0.0f;
+  float denom = peelMv - session.liftFlatMv;
+  if (denom < 50.0f) denom = 50.0f;  // flat captured at/above the peeling level: avoid /0
   return clampFloat((static_cast<float>(mv) - session.liftFlatMv) / denom, 0.0f, 1.0f);
 }
 

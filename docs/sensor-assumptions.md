@@ -65,10 +65,10 @@ Wound-vs-skin difference uses a thermistor offset measured at new-dressing calib
 **Normalization:** at `NEW_DRESSING`, capture a flat (sealed) millivolt reading. Map bend to 0…1:
 
 \[
-\mathrm{lift} = \mathrm{clamp}\!\left(\frac{V - V_{\mathrm{flat}}}{\text{full scale}},\ 0,\ 1\right)
+\mathrm{lift} = \mathrm{clamp}\!\left(\frac{V - V_{\mathrm{flat}}}{V_{\mathrm{peel}} - V_{\mathrm{flat}}},\ 0,\ 1\right)
 \]
 
-where V is the flipped reading. Full scale is **300 mV above the flat reading** (adjustable with the flex sensitivity slider), so the default clinician lift threshold of **0.25** trips at about +75 mV. Exact flex resistance is event-calibratable; firmware stores flat / max-bend session values in flash.
+where V is the flipped reading and full scale = peeling level − flat. The **peeling level is 650 mV** (flipped), because peeling was measured at ~600–700 mV; it's adjustable as "Peeling level" in the dashboard settings. The lift alert fires when the flex reaches the peeling level (lift = 1.0). Exact flex resistance is event-calibratable; firmware stores flat / max-bend session values in flash.
 
 ---
 

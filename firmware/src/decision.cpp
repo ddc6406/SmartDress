@@ -10,8 +10,8 @@ Thresholds defaultThresholds() {
   t.pHAlert = 7.5f;
   t.pHSustainMin = 30;
   t.maxWearHours = 72;
-  t.liftThreshold = 0.25f;
-  t.liftFullScaleMv = 300.0f;
+  t.liftThreshold = 1.0f;       // alert once the flex reaches the peeling level
+  t.liftFullScaleMv = 650.0f;   // peeling level: flipped flex mV (measured ~600-700 when peeling)
   t.moistureWetMv = 2800.0f;
   t.phMatchRadius = PH_MATCH_RADIUS;
   return t;
@@ -25,7 +25,7 @@ bool thresholdsValid(const Thresholds& t) {
          in(t.edgeWetPct, 0, 100) && in(t.tempDiffRiseC, 0, 10) &&
          in(t.tempSustainMin, 1, 240) && in(t.pHAlert, 4, 9) &&
          in(t.pHSustainMin, 1, 240) && in(t.maxWearHours, 1, 168) &&
-         in(t.liftThreshold, 0, 1) && in(t.liftFullScaleMv, 50, 1500) &&
+         in(t.liftThreshold, 0, 1) && in(t.liftFullScaleMv, 100, 3000) &&
          in(t.moistureWetMv, 500, 3100) && in(t.phMatchRadius, 2, 20);
 }
 

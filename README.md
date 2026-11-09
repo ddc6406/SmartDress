@@ -152,10 +152,10 @@ The dashboard has two parts. **The top is the easy-to-read version; the bottom i
 | **Moisture** | % wet | Dry (under 5 %) · Damp · Change soon (60 %+) · Change now (85 %+) · Check wiring | 0 % = dry pad (~150 mV), 100 % = the "fully wet" level (2800 mV by default). In between is a straight line. |
 | **Wound temperature** | Wound °C | Normal · Warmer than skin (2 °C+ above the reference) · Sensor problem | Thermistor voltage → resistance → °C (Beta 3950). The reference thermistor sits on nearby skin; the card also shows the difference. |
 | **pH** | pH 1–14 | Within limit · Above limit (over 7.5) · No strip · No colour sensor | The colour sensor's reading is matched to the closest colour on the pH strip chart. "Rough" until **Calibrate white** is done. |
-| **Peeling** | % of the peeling limit | Flat (under 30 %) · Bending · Peeling (100 %+) · Not connected | Rise in the flipped flex reading since you connected (or since New dressing). Flipped, the flex reads ~200 mV flat and goes up as it bends. 100 % = +75 mV by default (0.25 × 300 mV). |
+| **Peeling** | % of the peeling limit | Flat (under 30 %) · Bending · Peeling (100 %+) · Not connected | 0 % = the flat reading (at New dressing, or the flattest since you connected; ~200 mV flipped), 100 % = the **peeling level, 650 mV** (measured: peeling happens at ~600–700 mV). Adjustable as "Peeling level" in the settings. |
 | **Dressing age** | Hours | Not started · OK · Change now (72 h+) | Time since New dressing. |
 
-All limits (60 %, 85 %, 2 °C, 7.5, 72 h, flex sensitivity…) are the clinician's settings in **Thresholds & sensitivity**, and the cards update when they change.
+All limits (60 %, 85 %, 2 °C, 7.5, 72 h, peeling level 650 mV…) are the clinician's settings in **Thresholds & sensitivity**, and the cards update when they change.
 
 ### Bottom: raw sensor signals (engineering)
 
