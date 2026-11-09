@@ -46,11 +46,11 @@ const RAW_CHANNELS = [
   { key: "centerMv", offset: 26, name: "Moisture", simple: "moisture sensor", pin: "A2", color: "--chart-a", rFixed: 100000, sensorOnTop: true, rLabel: "Pad (thread on A0 → thread on A2)",
     range: "142 mV = dry (pad over 2 MΩ) · rises as it gets wet: ~500 damp, 1500–2800 wet · 3100+ = shorted",
     verdict: (mv) => mv <= 150 ? ["0 V: dry pad, or not connected", false] : mv >= 3100 ? ["Stuck at 3.3 V: shorted", false] : ["Wet signal", true] },
-  // Measured on the built pod: ~3100 mV lying flat, and the voltage DROPS as it bends. No resistance
-  // line: at the top of the ADC range it can't be worked out reliably.
-  { key: "liftMv", offset: 30, name: "Flex", simple: "flex sensor", pin: "33", color: "--chart-c", rFixed: null,
-    range: "~3100 mV = flat (working) · drops as it bends · ≤150 mV = fault (no 3V feed). An unplugged flex can also read high, so bend it once to check.",
-    verdict: (mv) => mv <= 150 ? ["No signal: check the 3V feed / wire", false] : ["Working (bend it: mV should drop)", true] },
+  // The pod sends flex FLIPPED (3300 − pin mV): the pin reads ~3100 flat and drops as it bends, so
+  // flipped it's ~200 flat and rises with bend. No resistance line: near the ADC's top it isn't reliable.
+  { key: "liftMv", offset: 30, name: "Flex", simple: "flex sensor, flipped", pin: "33 (shown as 3300 − pin mV)", color: "--chart-c", rFixed: null,
+    range: "~200 mV = flat (working) · rises as it bends · 3150+ = fault (pin at 0 V, no 3V feed). An unplugged flex can also look flat, so bend it once to check.",
+    verdict: (mv) => mv >= 3150 ? ["No signal: pin at 0 V, check the 3V feed / wire", false] : ["Working (bend it: mV should rise)", true] },
   { key: "tWoundMv", offset: 32, name: "Wound thermistor", simple: "temperature sensor", pin: "A4", color: "--chart-d", rFixed: 10000, sensorOnTop: false, rLabel: "Thermistor",
     range: "~1650 mV / 10 kΩ = 25 °C · ~1300 mV / 6.5 kΩ = skin (~34 °C) · lower = warmer · ≤150 or ≥3100 = fault",
     verdict: (mv) => mv <= 150 ? ["No signal (0 V): A4 wire or 10k to 3V", false] : mv >= 3100 ? ["Open: thermistor GND leg loose", false] : ["In range (~1650 mV room, lower = warmer)", true] },
@@ -294,18 +294,18 @@ function readable(p) {
     r.phWord.push(`Lower = more acidic. Limit ${t.pHAlert}. ${sure}`);
   }
 
-  // Peeling: how far the flex sensor has bent, as a share of the "peeling" limit. The flex reads
-  // ~3100 mV flat and drops as it bends, so bend = drop below the flat reading.
+  // Peeling: how far the flex sensor has bent, as a share of the "peeling" limit. liftMv is the
+  // flipped reading (~200 flat, rising with bend), so bend = rise above the flat reading.
   const fMv = p.liftMv;
   const base = state.rawBaseline?.liftMv;
-  const lift = p.lift ?? (fMv != null && base != null ? Math.max(0, (base - fMv) / t.liftFullScaleMv) : null);
+  const lift = p.lift ?? (fMv != null && base != null ? Math.max(0, (fMv - base) / t.liftFullScaleMv) : null);
   r.liftPct = lift == null ? null : (lift / t.liftThreshold) * 100;
   const since = p.lift != null ? "since New dressing" : "since you connected";
-  if (fMv != null && fMv <= 150) r.lift = ["Not connected", "bad", "Flex pin reads 0 V: check its 3V feed and wires."];
+  if (fMv != null && fMv >= 3150) r.lift = ["Not connected", "bad", "Flex pin reads 0 V: check its 3V feed and wires."];
   else if (r.liftPct == null) r.lift = ["—", "", ""];
   else {
     r.lift = r.liftPct >= 100 ? ["Peeling", "bad"] : r.liftPct >= 30 ? ["Bending", "warn"] : ["Flat", "ok"];
-    r.lift.push(`Bend ${since}. Flat ≈ 3100 mV; bending lowers it. 100 % = peeling alert (−${Math.round(t.liftThreshold * t.liftFullScaleMv)} mV).`);
+    r.lift.push(`Bend ${since}. Flat ≈ 200 mV (flipped); bending raises it. 100 % = peeling alert (+${Math.round(t.liftThreshold * t.liftFullScaleMv)} mV).`);
   }
 
   // Dressing age only exists once New dressing is pressed.
@@ -757,7 +757,7 @@ function startMock() {
       tRefC: 33.5 - 9.5,
       centerMv: Math.round(142 + center * 25),
       edgeMv: Math.round(142 + edge * 25),
-      liftMv: Math.round(3100 - lift * 800),
+      liftMv: Math.round(200 + lift * 800),
       // Mock colour sensor: a calibrated strip whose colour drifts mustard -> olive as pH rises.
       colR: Math.round(1150 - (pHEst - 6.8) * 300),
       colG: Math.round(1050 - (pHEst - 6.8) * 120),

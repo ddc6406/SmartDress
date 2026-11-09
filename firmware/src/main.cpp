@@ -234,8 +234,8 @@ namespace {
     Serial.println("[diagnose] ----");
     Serial.printf("  wound thermistor GPIO%d: %umV  %s\n", Pins::T_WOUND, w, pinVerdict(w, true));
     Serial.printf("  ref   thermistor GPIO%d: %umV  %s\n", Pins::T_REF, r, pinVerdict(r, true));
-    Serial.printf("  flex             GPIO%d: %umV  %s\n", Pins::LIFT, f,
-                  f <= 150 ? "at ground: no 3V feed or shorted" : "OK (~3100 flat; bend it and it should drop)");
+    Serial.printf("  flex             GPIO%d: pin %umV, flipped %umV  %s\n", Pins::LIFT, f, f >= 3300 ? 0 : 3300 - f,
+                  f <= 150 ? "at ground: no 3V feed or shorted" : "OK (flipped ~200 flat; bend it and it should rise)");
     Serial.println("[diagnose] ----");
   }
 #endif

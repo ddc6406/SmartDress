@@ -152,19 +152,19 @@ The dashboard has two parts. **The top is the easy-to-read version; the bottom i
 | **Moisture** | % wet | Dry (under 5 %) · Damp · Change soon (60 %+) · Change now (85 %+) · Check wiring | 0 % = dry pad (~150 mV), 100 % = the "fully wet" level (2800 mV by default). In between is a straight line. |
 | **Wound temperature** | Wound °C | Normal · Warmer than skin (2 °C+ above the reference) · Sensor problem | Thermistor voltage → resistance → °C (Beta 3950). The reference thermistor sits on nearby skin; the card also shows the difference. |
 | **pH** | pH 1–14 | Within limit · Above limit (over 7.5) · No strip · No colour sensor | The colour sensor's reading is matched to the closest colour on the pH strip chart. "Rough" until **Calibrate white** is done. |
-| **Peeling** | % of the peeling limit | Flat (under 30 %) · Bending · Peeling (100 %+) · Not connected | Drop in flex voltage since you connected (or since New dressing). The flex reads ~3100 mV flat and goes down as it bends. 100 % = −75 mV by default (0.25 × 300 mV). |
+| **Peeling** | % of the peeling limit | Flat (under 30 %) · Bending · Peeling (100 %+) · Not connected | Rise in the flipped flex reading since you connected (or since New dressing). Flipped, the flex reads ~200 mV flat and goes up as it bends. 100 % = +75 mV by default (0.25 × 300 mV). |
 | **Dressing age** | Hours | Not started · OK · Change now (72 h+) | Time since New dressing. |
 
 All limits (60 %, 85 %, 2 °C, 7.5, 72 h, flex sensitivity…) are the clinician's settings in **Thresholds & sensitivity**, and the cards update when they change.
 
 ### Bottom: raw sensor signals (engineering)
 
-Each card is the voltage the Feather pin actually measures (0–3300 mV), plus the sensor's resistance worked out from its divider, and the change since you connected.
+Each card is the voltage the Feather pin actually measures (0–3300 mV; the flex is shown flipped so it rises with bend), plus the sensor's resistance worked out from its divider, and the change since you connected.
 
 | Signal | Pin | Circuit | Typical values | Fault |
 | --- | --- | --- | --- | --- |
 | Moisture | A2 | A0 (pulsed 3.3 V) → thread → gauze → thread → A2 → 100k → GND | ~142 mV dry (pad over 2 MΩ) · ~500 damp · 1500–2800 wet (~3040 soaked) | 3100+ mV = threads shorted |
-| Flex | 33 | 3V → 47k → pin → flex → GND | **~3100 mV lying flat = working**; the voltage drops as it bends | ≤150 mV (no 3V feed). An unplugged flex can also read high, so bend it once to check the number moves. |
+| Flex (flipped) | 33 | 3V → 47k → pin → flex → GND. Shown **flipped: 3300 − pin mV** (the pin itself reads ~3100 flat and drops when bent) | **~200 mV flat = working**; rises as it bends | 3150+ (pin at 0 V, no 3V feed). An unplugged flex can also look flat, so bend it once to check the number moves. |
 | Wound thermistor | A4 | 3V → 10k → pin → NTC → GND | ~1650 mV = 25 °C (10 kΩ) · ~1300 mV = skin ~34 °C · lower = warmer | ≤150 or ≥3100 mV, or outside 15–50 °C |
 | Reference thermistor | 37 | same as wound | same as wound | same as wound |
 | Colour (pH strip) | STEMMA QT | TCS34725 R, G, B and brightness counts | Match distance: ≤2 exact · ≤5 good · ≤8 rough (adjustable) | No sensor detected, or too dark / glare |

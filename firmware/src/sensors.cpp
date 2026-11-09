@@ -204,15 +204,20 @@ bool captureWhiteRef(uint16_t out[3]) {
   return true;
 }
 
-uint16_t readLiftMv() { return avgMilliVolts(Pins::LIFT, 16); }  // 16 samples: steadier at the higher sensitivity
+// Flex is reported FLIPPED (3300 - pin mV): the pin reads ~3100 mV flat and drops as it bends, so
+// flipped it reads ~200 flat and rises with bend. 16 samples: steadier at the higher sensitivity.
+uint16_t readLiftMv() {
+  const uint32_t pin = avgMilliVolts(Pins::LIFT, 16);
+  return pin >= 3300 ? 0 : static_cast<uint16_t>(3300 - pin);
+}
 
 float liftNormalized(uint16_t mv, const SessionState& session, float fullScaleMv) {
   // Flat is captured at New dressing; the span comes from the live sensitivity setting, so
-  // moving the slider takes effect immediately without a new dressing. On the built pod the
-  // flex reads ~3100 mV flat and the voltage DROPS as it bends, so lift = drop below flat.
+  // moving the slider takes effect immediately without a new dressing. liftMv is the flipped
+  // reading, so it rises as the flex bends.
   float denom = fullScaleMv;
   if (!session.active || fabsf(denom) < 1.0f) return 0.0f;
-  return clampFloat((session.liftFlatMv - static_cast<float>(mv)) / denom, 0.0f, 1.0f);
+  return clampFloat((static_cast<float>(mv) - session.liftFlatMv) / denom, 0.0f, 1.0f);
 }
 
 void newDressingCalibration(SessionState& session) {
@@ -233,9 +238,9 @@ void newDressingCalibration(SessionState& session) {
   session.baselineDryEdgeMv = Pins::EDGE_ZONE_FITTED ? readMoistureMv(Pins::M_EDGE) : 0;
   session.baselineColorPh = readPH();
   session.liftFlatMv = readLiftMv();
-  // Lift sensitivity: lift reaches 1.0 after this many mV below the flat reading (bending lowers
-  // the voltage). 300 mV makes a modest bend register clearly (lift 0.25 alert = -75 mV).
-  session.liftMaxBendMv = session.liftFlatMv - LIFT_FULL_SCALE_MV;
+  // Lift sensitivity: lift reaches 1.0 after this many mV above the flat (flipped) reading.
+  // 300 mV makes a modest bend register clearly (lift 0.25 alert = +75 mV).
+  session.liftMaxBendMv = session.liftFlatMv + LIFT_FULL_SCALE_MV;
   session.startMs = millis();
   session.wornMs = 0;
   session.baselineReady = false;
@@ -269,10 +274,10 @@ uint8_t checkFaults(const SensorReadings& r) {
   if (tempBad(r.tWoundC) || tempBad(r.tRefC)) f |= FAULT_TEMP_RANGE;
   if (!r.colorPresent) f |= FAULT_COLOR_MISSING;
   if (r.colorPresent && r.clearRaw >= CLEAR_SATURATED) f |= FAULT_AMBIENT_LIGHT;
-  // Measured on the built pod: the flex reads ~3100 mV lying flat and drops as it bends, so a high
-  // reading is normal. Only a pin stuck at 0 V (no 3V feed / shorted) is a fault. An unplugged flex
-  // can also sit high, so the dashboard says to bend it to confirm.
-  if (r.liftMv <= AT_GROUND_MV) f |= FAULT_FLEX_OPEN;
+  // liftMv is flipped (3300 - pin mV). Flat reads ~200; only a pin stuck at 0 V (no 3V feed /
+  // shorted), i.e. a flipped reading of 3150+, is a fault. An unplugged flex can also look flat,
+  // so the dashboard says to bend it to confirm.
+  if (r.liftMv >= 3300 - AT_GROUND_MV) f |= FAULT_FLEX_OPEN;
   return f;
 }
 

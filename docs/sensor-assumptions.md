@@ -60,15 +60,15 @@ Wound-vs-skin difference uses a thermistor offset measured at new-dressing calib
 
 **Circuit:** 3.3 V → **47 kΩ** → node (GPIO33) → flex sensor → GND.
 
-**Measured on the built pod:** the flex reads **~3100 mV lying flat** (that is normal, not a fault) and the voltage **drops as it bends**. Only a pin at ~0 V (no 3V feed / shorted) is flagged as a sensor fault.
+**Measured on the built pod:** the pin reads **~3100 mV lying flat** (normal, not a fault) and the voltage **drops as it bends**. The firmware reports it **flipped** (`liftMv = 3300 − pin mV`), so flat reads ~200 mV and bending makes the number rise. Only a pin at ~0 V (flipped 3150+; no 3V feed / shorted) is flagged as a sensor fault.
 
 **Normalization:** at `NEW_DRESSING`, capture a flat (sealed) millivolt reading. Map bend to 0…1:
 
 \[
-\mathrm{lift} = \mathrm{clamp}\!\left(\frac{V_{\mathrm{flat}} - V}{\text{full scale}},\ 0,\ 1\right)
+\mathrm{lift} = \mathrm{clamp}\!\left(\frac{V - V_{\mathrm{flat}}}{\text{full scale}},\ 0,\ 1\right)
 \]
 
-Full scale is **300 mV below the flat reading** (adjustable with the flex sensitivity slider), so the default clinician lift threshold of **0.25** trips at about −75 mV. Exact flex resistance is event-calibratable; firmware stores flat / max-bend session values in flash.
+where V is the flipped reading. Full scale is **300 mV above the flat reading** (adjustable with the flex sensitivity slider), so the default clinician lift threshold of **0.25** trips at about +75 mV. Exact flex resistance is event-calibratable; firmware stores flat / max-bend session values in flash.
 
 ---
 
