@@ -153,9 +153,8 @@ The dashboard has two parts. **The top is the easy-to-read version; the bottom i
 | **Wound temperature** | Wound °C | Normal · Warmer than skin (2 °C+ above the reference) · Sensor problem | Thermistor voltage → resistance → °C (Beta 3950). The reference thermistor sits on nearby skin; the card also shows the difference. |
 | **pH** | pH 1–14 on a colour bar | Within limit · Above limit (over 7.5) · No strip (nothing under the sensor) · No colour sensor | The 14 chart colours are joined into **one continuous gradient** (pH 1 → 14). The sensor's colour is placed at the closest point on it and the pH is read off there, in-between values included, so an estimate **always** shows and a marker moves along the bar. "Colour fit" says how close it was (exact ≤2 pts · good ≤5 · rough ≤8 · off-gradient = guess). Only a calibrated fit within the leniency drives alerts. |
 | **Peeling** | % of the peeling limit | Flat (under 30 %) · Bending · Peeling (100 %+) · Not connected | 0 % = the flat reading (at New dressing, or the flattest since you connected; ~200 mV flipped), 100 % = the **peeling level, 650 mV** (measured: peeling happens at ~600–700 mV). Adjustable as "Peeling level" in the settings. |
-| **Dressing age** | Hours | Not started · OK · Change now (72 h+) | Time since New dressing. |
 
-All limits (60 %, 85 %, 2 °C, 7.5, 72 h, peeling level 650 mV…) are the clinician's settings in **Thresholds & sensitivity**, and the cards update when they change.
+All limits (60 %, 85 %, 2 °C, 7.5, peeling level 650 mV…) are the clinician's settings in **Thresholds & sensitivity**, and the cards update when they change.
 
 ### Bottom: raw sensor signals (engineering)
 

@@ -334,10 +334,6 @@ function readable(p) {
   }
 
   // Dressing age only exists once New dressing is pressed.
-  r.hours = p.hoursWorn;
-  r.hoursWord = p.hoursWorn == null
-    ? ["Not started", "", "Press New dressing when a fresh dressing goes on. Moisture, peeling and wear-time alerts start then."]
-    : [p.hoursWorn >= t.maxWearHours ? "Change now" : "OK", p.hoursWorn >= t.maxWearHours ? "bad" : "ok", `Change by ${t.maxWearHours} h (clinician's maximum wear).`];
 
   // Overall: sensor faults first, then the pod's own alert, then session state.
   const faulty = FAULT_NAMES.filter(([bit]) => p.faults & bit).map(([, name]) => name);
@@ -369,7 +365,6 @@ function updateSummary(p) {
     if (r.ph != null) mark.style.left = `${((clamp(r.ph, 1, 14) - 1) / 13) * 100}%`;
   }
   setCard("lift", r.lift, fmt(r.liftPct, 0));
-  setCard("hours", r.hoursWord, fmt(r.hours, 1));
   return r;
 }
 
@@ -450,7 +445,7 @@ function resetLiveView(message) {
   state.last = null;
   state.flexFlat = null;
   state.flexMin = null;
-  for (const id of ["moisture", "temp", "ph", "lift", "hours"]) setCard(id, ["—", "", ""], "—");
+  for (const id of ["moisture", "temp", "ph", "lift"]) setCard(id, ["—", "", ""], "—");
   const mark = document.getElementById("ph-mark");
   if (mark) mark.hidden = true;
   setCard("overall", [message, "", message === "Not connected" ? "Connect the pod to see live readings." : ""]);

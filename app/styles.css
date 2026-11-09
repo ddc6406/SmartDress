@@ -391,8 +391,8 @@ footer {
 }
 
 /* Readable summary (top): a plain word per sensor, coloured by how it's doing. */
-.summary .readings { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-@media (max-width: 1000px) { .summary .readings { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.summary .readings { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .summary .readings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 800px) { .summary .readings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .summary .readings { grid-template-columns: 1fr; } }
 .tile .word { margin: 0.3rem 0 0; font-size: 1.25rem; font-weight: 700; line-height: 1.2; }

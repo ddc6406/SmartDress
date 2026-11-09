@@ -115,7 +115,7 @@ DecisionResult evaluateStatus(const SensorReadings& r, const Thresholds& t,
   if (r.edgePct >= t.edgeWetPct) addReason(out, REASON_EDGE_WET);
   if (r.centerPct >= t.saturationNowPct) addReason(out, REASON_SATURATED);
   if (r.lift >= t.liftThreshold) addReason(out, REASON_LIFT);
-  if (r.hoursWorn >= static_cast<float>(t.maxWearHours)) addReason(out, REASON_MAX_WEAR);
+  // Wear-time alert removed: the team chose not to use a maximum wear time.
 
   if (out.reasonCount > 0) {
     out.urgency = Urgency::CHANGE_NOW;
