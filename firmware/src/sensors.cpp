@@ -208,10 +208,11 @@ uint16_t readLiftMv() { return avgMilliVolts(Pins::LIFT, 16); }  // 16 samples: 
 
 float liftNormalized(uint16_t mv, const SessionState& session, float fullScaleMv) {
   // Flat is captured at New dressing; the span comes from the live sensitivity setting, so
-  // moving the slider takes effect immediately without a new dressing.
+  // moving the slider takes effect immediately without a new dressing. On the built pod the
+  // flex reads ~3100 mV flat and the voltage DROPS as it bends, so lift = drop below flat.
   float denom = fullScaleMv;
   if (!session.active || fabsf(denom) < 1.0f) return 0.0f;
-  return clampFloat((static_cast<float>(mv) - session.liftFlatMv) / denom, 0.0f, 1.0f);
+  return clampFloat((session.liftFlatMv - static_cast<float>(mv)) / denom, 0.0f, 1.0f);
 }
 
 void newDressingCalibration(SessionState& session) {
@@ -232,9 +233,9 @@ void newDressingCalibration(SessionState& session) {
   session.baselineDryEdgeMv = Pins::EDGE_ZONE_FITTED ? readMoistureMv(Pins::M_EDGE) : 0;
   session.baselineColorPh = readPH();
   session.liftFlatMv = readLiftMv();
-  // Lift sensitivity: lift reaches 1.0 after this many mV above the flat reading. Was 800 mV;
-  // 300 mV makes a modest bend register clearly (lift 0.25 alert = +75 mV).
-  session.liftMaxBendMv = session.liftFlatMv + LIFT_FULL_SCALE_MV;
+  // Lift sensitivity: lift reaches 1.0 after this many mV below the flat reading (bending lowers
+  // the voltage). 300 mV makes a modest bend register clearly (lift 0.25 alert = -75 mV).
+  session.liftMaxBendMv = session.liftFlatMv - LIFT_FULL_SCALE_MV;
   session.startMs = millis();
   session.wornMs = 0;
   session.baselineReady = false;
@@ -268,10 +269,10 @@ uint8_t checkFaults(const SensorReadings& r) {
   if (tempBad(r.tWoundC) || tempBad(r.tRefC)) f |= FAULT_TEMP_RANGE;
   if (!r.colorPresent) f |= FAULT_COLOR_MISSING;
   if (r.colorPresent && r.clearRaw >= CLEAR_SATURATED) f |= FAULT_AMBIENT_LIGHT;
-  // Flex sits between a 47k pull-up and GND: at 0 V = shorted / no pull-up. Above ~2800 mV the flex
-  // would be > ~300 kOhm, far beyond any real flex sensor (10-100k), so it is unplugged / open.
-  constexpr uint16_t FLEX_OPEN_MV = 2800;
-  if (r.liftMv <= AT_GROUND_MV || r.liftMv >= FLEX_OPEN_MV) f |= FAULT_FLEX_OPEN;
+  // Measured on the built pod: the flex reads ~3100 mV lying flat and drops as it bends, so a high
+  // reading is normal. Only a pin stuck at 0 V (no 3V feed / shorted) is a fault. An unplugged flex
+  // can also sit high, so the dashboard says to bend it to confirm.
+  if (r.liftMv <= AT_GROUND_MV) f |= FAULT_FLEX_OPEN;
   return f;
 }
 

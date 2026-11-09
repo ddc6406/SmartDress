@@ -234,11 +234,8 @@ namespace {
     Serial.println("[diagnose] ----");
     Serial.printf("  wound thermistor GPIO%d: %umV  %s\n", Pins::T_WOUND, w, pinVerdict(w, true));
     Serial.printf("  ref   thermistor GPIO%d: %umV  %s\n", Pins::T_REF, r, pinVerdict(r, true));
-    Serial.printf("  flex             GPIO%d: %umV  %s\n", Pins::LIFT, f, pinVerdict(f, true));
-    if (f > 150 && f < 3100) {
-      Serial.printf("  flex resistance ~= %.1f kOhm (a 47k pull-up is assumed; flat flex sensors are usually 10-25k)\n",
-                    47.0f * f / (3300.0f - f));
-    }
+    Serial.printf("  flex             GPIO%d: %umV  %s\n", Pins::LIFT, f,
+                  f <= 150 ? "at ground: no 3V feed or shorted" : "OK (~3100 flat; bend it and it should drop)");
     Serial.println("[diagnose] ----");
   }
 #endif
