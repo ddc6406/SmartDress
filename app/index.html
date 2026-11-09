@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=18" />
 </head>
 <body>
   <div class="bg" aria-hidden="true"></div>
@@ -33,58 +33,50 @@
 
   <p id="conn-banner" class="conn" role="status">Not connected — use Chrome Web Bluetooth, or start mock mode to try the UI without hardware.</p>
 
-  <section id="advisory" class="advisory" hidden>
-    <p class="advisory-label">Advisory</p>
-    <p id="advisory-text" class="advisory-text"></p>
-  </section>
-
   <main>
-    <section class="readings" aria-label="Live readings">
-      <article class="tile">
-        <h2>Moisture <span class="simple">(moisture sensor)</span></h2>
-        <p class="value"><span id="v-center">—</span><span class="unit">%</span></p>
-        <p class="range" id="range-center"></p>
+    <section class="summary" aria-label="What the readings mean">
+      <article class="tile overall" id="sum-overall">
+        <h2>Right now</h2>
+        <p class="word" id="w-overall">Not connected</p>
+        <p class="range" id="e-overall">Connect the pod to see live readings.</p>
       </article>
-      <article class="tile">
-        <h2>Temp difference (wound − reference) <span class="simple">(temperature sensors)</span></h2>
-        <p class="value"><span id="v-temp">—</span><span class="unit">°C</span></p>
-        <p class="range" id="range-temp"></p>
-      </article>
-      <article class="tile">
-        <h2>Estimated pH <span class="simple">(colour sensor)</span></h2>
-        <p class="value"><span id="v-ph">—</span></p>
-        <p class="range" id="range-ph"></p>
-      </article>
-      <article class="tile">
-        <h2>Lift (0 = flat, 1 = max bend) <span class="simple">(flex sensor)</span></h2>
-        <p class="value"><span id="v-lift">—</span></p>
-        <p class="range" id="range-lift"></p>
-      </article>
-      <article class="tile">
-        <h2>Dressing worn (since New dressing)</h2>
-        <p class="value"><span id="v-hours">—</span><span class="unit">h</span></p>
-        <p class="range" id="range-hours"></p>
-      </article>
-      <article class="tile">
-        <h2>Wound temp <span class="simple">(temperature sensor)</span></h2>
-        <p class="value"><span id="v-twound">—</span><span class="unit">°C</span></p>
-        <p class="range" id="range-twound"></p>
-      </article>
-      <article class="tile">
-        <h2>Reference temp <span class="simple">(temperature sensor)</span></h2>
-        <p class="value"><span id="v-tref">—</span><span class="unit">°C</span></p>
-        <p class="range" id="range-tref"></p>
-      </article>
-      <article class="tile">
-        <h2>Sensor status</h2>
-        <p id="v-faults" class="status">—</p>
-        <p class="range">Lists any sensor that is unplugged, shorted or out of range. Colour sensor is optional.</p>
-      </article>
+      <div class="readings">
+        <article class="tile sum">
+          <h2>Moisture</h2>
+          <p class="word" id="w-moisture">—</p>
+          <p class="value"><span id="n-moisture">—</span><span class="unit">% wet</span></p>
+          <p class="range" id="e-moisture"></p>
+        </article>
+        <article class="tile sum">
+          <h2>Wound temperature</h2>
+          <p class="word" id="w-temp">—</p>
+          <p class="value"><span id="n-temp">—</span><span class="unit">°C</span></p>
+          <p class="range" id="e-temp"></p>
+        </article>
+        <article class="tile sum">
+          <h2>pH</h2>
+          <p class="word" id="w-ph">—</p>
+          <p class="value"><span id="n-ph">—</span><span class="unit">pH</span></p>
+          <p class="range" id="e-ph"></p>
+        </article>
+        <article class="tile sum">
+          <h2>Peeling</h2>
+          <p class="word" id="w-lift">—</p>
+          <p class="value"><span id="n-lift">—</span><span class="unit">% of limit</span></p>
+          <p class="range" id="e-lift"></p>
+        </article>
+        <article class="tile sum">
+          <h2>Dressing age</h2>
+          <p class="word" id="w-hours">—</p>
+          <p class="value"><span id="n-hours">—</span><span class="unit">h</span></p>
+          <p class="range" id="e-hours"></p>
+        </article>
+      </div>
     </section>
 
     <section class="raw" aria-label="Raw sensor signals">
       <div class="raw-head">
-        <h2>Raw sensor signals</h2>
+        <h2>Raw sensor signals <span class="simple">(engineering view)</span></h2>
         <p class="hint">Exactly what each Feather pin sees, updated every second. 0–3300 mV. “Change” is since you connected.</p>
       </div>
       <div class="readings" id="raw-tiles"></div>
@@ -97,7 +89,7 @@
         <canvas id="chart-raw" width="640" height="200"></canvas>
       </div>
       <div class="chart-block">
-        <h2>Moisture trend <span class="simple">(moisture sensor)</span></h2>
+        <h2>Moisture trend <span class="simple">(% wet)</span></h2>
         <p class="legend"><span class="key" style="--c: var(--chart-a)">Moisture (A2)</span></p>
         <canvas id="chart-moisture" width="640" height="180"></canvas>
       </div>
@@ -108,7 +100,7 @@
       </div>
       <div class="chart-block">
         <h2>Temp difference &amp; pH <span class="simple">(temperature + colour sensors)</span></h2>
-        <p class="legend"><span class="key" style="--c: var(--chart-c)">Temp diff (−1 to 4 °C)</span><span class="key" style="--c: var(--chart-a)">pH (4 to 9)</span></p>
+        <p class="legend"><span class="key" style="--c: var(--chart-c)">Temp diff (−1 to 4 °C)</span><span class="key" style="--c: var(--chart-a)">pH (1 to 14)</span></p>
         <canvas id="chart-temp-ph" width="640" height="180"></canvas>
       </div>
     </section>
@@ -148,6 +140,6 @@
     <p>Prototype for natHacks 2026 · phantom testing only · non-diagnostic</p>
   </footer>
 
-  <script src="app.js?v=17" type="module"></script>
+  <script src="app.js?v=18" type="module"></script>
 </body>
 </html>

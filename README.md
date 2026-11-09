@@ -140,6 +140,40 @@ python3 -m http.server 8765
 
 ---
 
+## Reading the dashboard
+
+The dashboard has two parts. **The top is the easy-to-read version; the bottom is the engineering version.** Every number at the top is worked out from the raw signals below it, live, every second, so the top fills in as soon as the pod connects (no New dressing needed). After **New dressing**, the pod's own calibrated numbers are used and the alerts switch on.
+
+### Top: what it means (easy to read)
+
+| Card | Shows | Words you'll see | How it's worked out |
+| --- | --- | --- | --- |
+| **Right now** | One-line summary | All OK · Live · Change soon · Change now · Contact clinic · Check sensors | Sensor faults first, then the pod's alert, then "Live" if no dressing is started |
+| **Moisture** | % wet | Dry (under 5 %) · Damp · Change soon (60 %+) · Change now (85 %+) · Check wiring | 0 % = dry pad (~150 mV), 100 % = the "fully wet" level (2800 mV by default). In between is a straight line. |
+| **Wound temperature** | Wound °C | Normal · Warmer than skin (2 °C+ above the reference) · Sensor problem | Thermistor voltage → resistance → °C (Beta 3950). The reference thermistor sits on nearby skin; the card also shows the difference. |
+| **pH** | pH 1–14 | Within limit · Above limit (over 7.5) · No strip · No colour sensor | The colour sensor's reading is matched to the closest colour on the pH strip chart. "Rough" until **Calibrate white** is done. |
+| **Peeling** | % of the peeling limit | Flat (under 30 %) · Bending · Peeling (100 %+) · Not connected | Rise in flex voltage since you connected (or since New dressing). 100 % = +75 mV by default (0.25 × 300 mV). |
+| **Dressing age** | Hours | Not started · OK · Change now (72 h+) | Time since New dressing. |
+
+All limits (60 %, 85 %, 2 °C, 7.5, 72 h, flex sensitivity…) are the clinician's settings in **Thresholds & sensitivity**, and the cards update when they change.
+
+### Bottom: raw sensor signals (engineering)
+
+Each card is the voltage the Feather pin actually measures (0–3300 mV), plus the sensor's resistance worked out from its divider, and the change since you connected.
+
+| Signal | Pin | Circuit | Typical values | Fault |
+| --- | --- | --- | --- | --- |
+| Moisture | A2 | A0 (pulsed 3.3 V) → thread → gauze → thread → A2 → 100k → GND | ~142 mV dry (pad over 2 MΩ) · ~500 damp · 1500–2800 wet (~3040 soaked) | 3100+ mV = threads shorted |
+| Flex | 33 | 3V → 47k → pin → flex → GND | A few hundred mV flat (10–25 kΩ); rises when bent | ≤150 mV (no 3V) or ≥2800 mV (flex unplugged) |
+| Wound thermistor | A4 | 3V → 10k → pin → NTC → GND | ~1650 mV = 25 °C (10 kΩ) · ~1300 mV = skin ~34 °C · lower = warmer | ≤150 or ≥3100 mV, or outside 15–50 °C |
+| Reference thermistor | 37 | same as wound | same as wound | same as wound |
+| Colour (pH strip) | STEMMA QT | TCS34725 R, G, B and brightness counts | Match distance: ≤2 exact · ≤5 good · ≤8 rough (adjustable) | No sensor detected, or too dark / glare |
+| Live feed | — | Packet count, time since the pod powered on, last update | One packet per second | Count stops = Bluetooth dropped |
+
+Why these limits: the ESP32's ADC can't read below ~150 mV or above ~3100 mV, so a pin stuck at either end means "nothing connected" or "shorted", not a real reading. More detail is in [`docs/sensor-assumptions.md`](docs/sensor-assumptions.md).
+
+---
+
 ## Bench testing with parts missing
 
 The default build is strict: a missing thermistor or flex sensor raises `SENSOR_FAULT` (flashing orange) and blocks the other alerts. A missing colour sensor is harmless (pH shows "—").

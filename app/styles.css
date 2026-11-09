@@ -389,3 +389,17 @@ footer {
   .form input[type="number"] { font-size: 16px; } /* 16px stops iPhone zooming in on focus */
   footer { padding-bottom: max(2rem, env(safe-area-inset-bottom)); }
 }
+
+/* Readable summary (top): a plain word per sensor, coloured by how it's doing. */
+.summary .readings { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .summary .readings { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .summary .readings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .summary .readings { grid-template-columns: 1fr; } }
+.tile .word { margin: 0.3rem 0 0; font-size: 1.25rem; font-weight: 700; line-height: 1.2; }
+.tile .word.ok { color: var(--ok); }
+.tile .word.warn { color: #9a6a00; }
+.tile .word.bad { color: var(--bad); }
+.tile.sum .value { font-size: 1.5rem; margin-top: 0.15rem; }
+.tile.overall { margin-bottom: 0.85rem; }
+.tile.overall .word { font-size: 1.6rem; }
+.tile.overall .range { font-size: 0.9rem; }

@@ -62,21 +62,11 @@ const els = {
   mock: document.getElementById("btn-mock"),
   disconnect: document.getElementById("btn-disconnect"),
   conn: document.getElementById("conn-banner"),
-  advisory: document.getElementById("advisory"),
-  advisoryText: document.getElementById("advisory-text"),
   form: document.getElementById("threshold-form"),
   formStatus: document.getElementById("form-status"),
   newDressing: document.getElementById("btn-new-dressing"),
   ack: document.getElementById("btn-ack"),
   selfTest: document.getElementById("btn-self-test"),
-  vCenter: document.getElementById("v-center"),
-  vTemp: document.getElementById("v-temp"),
-  vPh: document.getElementById("v-ph"),
-  vLift: document.getElementById("v-lift"),
-  vHours: document.getElementById("v-hours"),
-  vTWound: document.getElementById("v-twound"),
-  vTRef: document.getElementById("v-tref"),
-  vFaults: document.getElementById("v-faults"),
   chartMoisture: document.getElementById("chart-moisture"),
   chartTemps: document.getElementById("chart-temps"),
   chartTempPh: document.getElementById("chart-temp-ph"),
@@ -202,20 +192,12 @@ function decodeThresholds(view) {
   };
 }
 
-// "What the numbers mean" under each main tile. Uses the live clinician thresholds, so the
-// guide stays right when a clinician changes a limit.
+// Guide under the colour tile; uses the live leniency so it stays right when it's changed.
 function renderRanges() {
-  const t = state.thresholds;
-  const set = (id, text) => { const el = document.getElementById(`range-${id}`); if (el) el.textContent = text; };
-  set("center", `0 % = as dry as when applied · 100 % = ${t.moistureWetMv} mV · ${t.saturationSoonPct} %+ change soon · ${t.saturationNowPct} %+ change now. Needs New dressing.`);
-  set("temp", `About 0 = wound same as nearby skin. A rise of ${t.tempDiffRiseC} °C+ held for ${t.tempSustainMin} min → contact clinic.`);
-  set("ph", `Lower = more acidic. Above your clinician's limit (${t.pHAlert}) for ${t.pHSustainMin} min → contact clinic. Estimate only.`);
-  set("lift", `0 = sealed flat · 1 = ${t.liftFullScaleMv} mV of bend · ${t.liftThreshold}+ (≈ +${Math.round(t.liftThreshold * t.liftFullScaleMv)} mV) = lifting, change now. Needs New dressing.`);
-  set("colour", `pH 1–14 from your strip chart (lower = more acidic). Match: ≤2 pts exact · ≤5 good · ≤${t.phMatchRadius} rough · over ${t.phMatchRadius} = not a strip colour.`);
-  set("hours", `Time since New dressing. Change by ${t.maxWearHours} h (clinician's maximum wear).`);
-  const temps = "Room ~18–25 °C · skin ~30–35 °C. Below 15 or above 50 °C, or no reading = sensor fault.";
-  set("twound", temps);
-  set("tref", temps);
+  const el = document.getElementById("range-colour");
+  const r = state.thresholds.phMatchRadius;
+  if (el) el.textContent = `pH 1–14 from your strip chart (lower = more acidic). Match: ≤2 pts exact · ≤5 good · ≤${r} rough · over ${r} = not a strip colour.`;
+  if (state.last) updateSummary(state.last);
 }
 
 const sliders = {}; // input name -> its range slider
@@ -266,38 +248,104 @@ function readThresholdsFromForm() {
   };
 }
 
-function updateTiles(packet) {
-  els.vCenter.textContent = fmt(packet.centerPct, 1);
-  els.vTemp.textContent = fmt(packet.tempDiffC, 2);
-  els.vPh.textContent = fmt(packet.pHEst, 2);
-  els.vLift.textContent = fmt(packet.lift, 2);
-  els.vHours.textContent = fmt(packet.hoursWorn, 1);
-  els.vTWound.textContent = fmt(packet.tWoundC, 1);
-  els.vTRef.textContent = fmt(packet.tRefC, 1);
-  const faulty = FAULT_NAMES.filter(([bit]) => packet.faults & bit).map(([, name]) => name);
-  els.vFaults.textContent =
-    (faulty.length ? `Fault: ${faulty.join(", ")}` : "All sensors OK") +
-    (packet.hoursWorn == null ? " · No dressing session: press New dressing to calibrate %, lift and wear time." : "");
-}
+const URGENCY_WORD = ["All OK", "Change soon", "Change now", "Contact clinic", "Check sensors"];
+const URGENCY_TONE = ["ok", "warn", "bad", "bad", "bad"];
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
-function updateAdvisory(packet) {
-  const lines = packet.reasons.map((c) => REASON_TEXT[c]).filter(Boolean);
-  if (!lines.length) {
-    els.advisory.hidden = true;
-    els.advisoryText.textContent = "";
-    return;
+// Plain-language reading, worked out from the raw signals in the same packet so it shows even
+// before New dressing. Where the pod has a session, its own calibrated numbers are used instead.
+function readable(p) {
+  const t = state.thresholds;
+  const r = {};
+
+  // Moisture: 0 % at the dry floor (150 mV), 100 % at the "fully wet" level.
+  const mMv = p.centerMv;
+  r.moisturePct = p.centerPct ?? (mMv == null ? null : clamp(((mMv - 150) / (t.moistureWetMv - 150)) * 100, 0, 100));
+  if (mMv != null && mMv >= 3100) r.moisture = ["Check wiring", "bad", "Pin reads 3.3 V: the two threads are touching or shorted."];
+  else if (r.moisturePct == null) r.moisture = ["—", "", ""];
+  else {
+    const pct = r.moisturePct;
+    r.moisture = pct < 5 ? ["Dry", "ok"] : pct < t.saturationSoonPct ? ["Damp", "ok"] : pct < t.saturationNowPct ? ["Change soon", "warn"] : ["Change now", "bad"];
+    r.moisture.push(`0 % = dry, 100 % = soaked. Change soon at ${t.saturationSoonPct} %, change now at ${t.saturationNowPct} %.`);
   }
-  els.advisory.hidden = false;
-  els.advisoryText.textContent = lines.join(" ");
+
+  // Temperature: wound reading, compared with the reference (nearby skin) thermistor.
+  r.tWound = p.tWoundC;
+  r.tDiff = p.tempDiffC ?? (p.tWoundC != null && p.tRefC != null ? p.tWoundC - p.tRefC : null);
+  if (p.tWoundC == null || p.tRefC == null) {
+    r.temp = ["Sensor problem", "bad", `${p.tWoundC == null ? "Wound" : "Reference"} thermistor has no valid reading (check its wires).`];
+  } else {
+    const d = r.tDiff;
+    r.temp = d >= t.tempDiffRiseC ? ["Warmer than skin", "warn"] : ["Normal", "ok"];
+    r.temp.push(`Skin reference ${fmt(p.tRefC, 1)} °C, so the wound is ${d >= 0 ? "+" : ""}${fmt(d, 1)} °C. Alert if ${t.tempDiffRiseC} °C+ warmer for ${t.tempSustainMin} min.`);
+  }
+
+  // pH from the colour sensor's strip match.
+  r.ph = null;
+  if (p.colC == null || p.colC === 0) r.phWord = ["No colour sensor", "bad", "Colour sensor not detected on the STEMMA QT port."];
+  else if (p.colMatch === MATCH_NO_READING) r.phWord = ["No strip", "", "Nothing under the sensor (too dark), or glare."];
+  else if (p.colMatch / 10 > t.phMatchRadius) r.phWord = ["No strip", "", "The colour under the sensor isn't a pH strip colour."];
+  else {
+    r.ph = p.colNearestPh;
+    const sure = p.colWhiteSet ? "Calibrated reading." : "Rough: press Calibrate white for a better reading.";
+    r.phWord = r.ph > t.pHAlert ? ["Above limit", "warn"] : ["Within limit", "ok"];
+    r.phWord.push(`Lower = more acidic. Limit ${t.pHAlert}. ${sure}`);
+  }
+
+  // Peeling: how far the flex sensor has bent, as a share of the "peeling" limit.
+  const fMv = p.liftMv;
+  const base = state.rawBaseline?.liftMv;
+  const lift = p.lift ?? (fMv != null && base != null ? Math.max(0, (fMv - base) / t.liftFullScaleMv) : null);
+  r.liftPct = lift == null ? null : (lift / t.liftThreshold) * 100;
+  const since = p.lift != null ? "since New dressing" : "since you connected";
+  if (fMv != null && (fMv <= 150 || fMv >= 2800)) r.lift = ["Not connected", "bad", "Flex sensor reads open or shorted (check its wires)."];
+  else if (r.liftPct == null) r.lift = ["—", "", ""];
+  else {
+    r.lift = r.liftPct >= 100 ? ["Peeling", "bad"] : r.liftPct >= 30 ? ["Bending", "warn"] : ["Flat", "ok"];
+    r.lift.push(`Bend ${since}. 100 % = peeling alert (+${Math.round(t.liftThreshold * t.liftFullScaleMv)} mV).`);
+  }
+
+  // Dressing age only exists once New dressing is pressed.
+  r.hours = p.hoursWorn;
+  r.hoursWord = p.hoursWorn == null
+    ? ["Not started", "", "Press New dressing when a fresh dressing goes on. Moisture, peeling and wear-time alerts start then."]
+    : [p.hoursWorn >= t.maxWearHours ? "Change now" : "OK", p.hoursWorn >= t.maxWearHours ? "bad" : "ok", `Change by ${t.maxWearHours} h (clinician's maximum wear).`];
+
+  // Overall: sensor faults first, then the pod's own alert, then session state.
+  const faulty = FAULT_NAMES.filter(([bit]) => p.faults & bit).map(([, name]) => name);
+  const lines = p.reasons.map((c) => REASON_TEXT[c]).filter(Boolean);
+  if (lines.length || p.urgency) r.overall = [URGENCY_WORD[p.urgency] ?? "Alert", URGENCY_TONE[p.urgency] ?? "bad", lines.join(" ") || (faulty.length ? `Check: ${faulty.join(", ")}.` : "")];
+  else if (faulty.length) r.overall = ["Check sensors", "warn", `Not reading properly: ${faulty.join(", ")}.`];
+  else if (p.hoursWorn == null) r.overall = ["Live", "ok", "Sensors are reading. Press New dressing to start the alerts."];
+  else r.overall = ["All OK", "ok", "Everything is within your clinician's limits."];
+  return r;
 }
 
-function pushHistory(packet) {
+function setCard(id, [word, tone, text], value) {
+  const w = document.getElementById(`w-${id}`);
+  w.textContent = word;
+  w.className = `word ${tone || ""}`;
+  document.getElementById(`e-${id}`).textContent = text || "";
+  if (value !== undefined) document.getElementById(`n-${id}`).textContent = value;
+}
+
+function updateSummary(p) {
+  const r = readable(p);
+  setCard("overall", r.overall);
+  setCard("moisture", r.moisture, fmt(r.moisturePct, 0));
+  setCard("temp", r.temp, fmt(r.tWound, 1));
+  setCard("ph", r.phWord, fmt(r.ph, 1));
+  setCard("lift", r.lift, fmt(r.liftPct, 0));
+  setCard("hours", r.hoursWord, fmt(r.hours, 1));
+  return r;
+}
+
+function pushHistory(packet, r) {
   state.history.push({
     t: Date.now(),
-    centerPct: packet.centerPct,
-    edgePct: packet.edgePct,
-    tempDiffC: packet.tempDiffC,
-    pHEst: packet.pHEst,
+    centerPct: r.moisturePct,
+    tempDiffC: r.tDiff,
+    pHEst: r.ph,
     tWoundC: packet.tWoundC,
     tRefC: packet.tRefC,
     ...Object.fromEntries(RAW_CHANNELS.map((c) => [c.key, packet[c.key] ?? null])),
@@ -366,11 +414,9 @@ function updateRaw(packet) {
 // Blank every live value. Called on connect, disconnect and mock start, so old readings never
 // sit on screen looking live.
 function resetLiveView(message) {
-  for (const el of [els.vCenter, els.vTemp, els.vPh, els.vLift, els.vHours, els.vTWound, els.vTRef]) {
-    el.textContent = "—";
-  }
-  els.vFaults.textContent = message;
-  els.advisory.hidden = true;
+  state.last = null;
+  for (const id of ["moisture", "temp", "ph", "lift", "hours"]) setCard(id, ["—", "", ""], "—");
+  setCard("overall", [message, "", message === "Not connected" ? "Connect the pod to see live readings." : ""]);
   state.rawBaseline = null;
   state.rawCount = 0;
   for (const c of RAW_CHANNELS) {
@@ -424,11 +470,11 @@ function updateColour(packet) {
 }
 
 function onPacket(packet) {
+  state.last = packet;
   updateColour(packet);
-  updateRaw(packet);
-  updateTiles(packet);
-  updateAdvisory(packet);
-  pushHistory(packet);
+  updateRaw(packet); // sets the connect-time baseline the summary's peeling reading uses
+  const r = updateSummary(packet);
+  pushHistory(packet, r);
 }
 
 function cssVar(name) {
@@ -514,7 +560,7 @@ function drawCharts() {
   );
   drawLineChart(els.chartTempPh, [
     { data: hist.map((p) => p.tempDiffC), color: cssVar("--chart-c"), min: -1, max: 4 },
-    { data: hist.map((p) => p.pHEst), color: cssVar("--chart-a"), min: 4, max: 9 },
+    { data: hist.map((p) => p.pHEst), color: cssVar("--chart-a"), min: 1, max: 14 },
   ]);
 }
 
